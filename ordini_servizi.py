@@ -208,7 +208,19 @@ async def ordini_servizi_page(request: Request):
 
 @router.get("/ordini_servizi/ge", include_in_schema=False)
 async def get_gestione_gs_tab(request: Request):
-    return templates.TemplateResponse("ordini_servizi_ge.html", {"request": request})
+    """Render the Gestione GS tab.
+
+    When called via AJAX the route returns only the tab content so it can be
+    injected into an existing page. If accessed directly it returns a complete
+    page extending ``base.html``.
+    """
+
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    template = "ordini_servizi_ge_partial.html" if is_ajax else "ordini_servizi_ge.html"
+    context = {"request": request}
+    if not is_ajax:
+        context["username"] = request.cookies.get("session")
+    return templates.TemplateResponse(template, context)
 
 @router.get("/api/servizi/ge/columns")
 async def get_gestione_gs_columns(db: Session = Depends(get_db)):
