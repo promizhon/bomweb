@@ -545,11 +545,13 @@ body.sidebar-collapsed .main-content {
 }
 
 #gestione-gs-table {
-    min-width: 2000px;
+    /* permette alla tabella di ridimensionarsi in base al contenuto */
+    width: 100%;
+    min-width: 0;
 }
 
 #gestione-gs-table .tabulator-table {
-    font-size: 0.97rem;
+    font-size: 0.85rem;
     background: var(--surface, #fff);
     color: var(--text, #222);
 }
@@ -566,8 +568,9 @@ body.sidebar-collapsed .main-content {
     box-shadow: none;
 }
 #gestione-gs-table .tabulator-header .tabulator-col {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.85em;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.9em;
+    text-transform: capitalize;
     border-right: 1px solid var(--accent-yellow, #BDD70F);
     background: transparent;
 }
