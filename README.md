@@ -20,7 +20,8 @@ Applicazione web per la gestione di ordini materiali e servizi, con interfaccia 
    ```
    pip install -r requirements.txt
    ```
-3. Configura il database in `database_config.py` e, se necessario, il file `.env`.
+3. Imposta le variabili d'ambiente `DB_USER`, `DB_PASSWORD` e `DB_HOST` (opzionale
+   `DB_NAME`) nel tuo ambiente o nel file `.env`.
 
 ## Avvio
 Lancia il server FastAPI:
