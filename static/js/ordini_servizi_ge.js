@@ -8,7 +8,7 @@
 // <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
 // <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 
-console.log('ordini_servizi_ge.js caricato');
+// console.log('ordini_servizi_ge.js caricato');
 
 (function () {
     if (!document.getElementById('gestione-gs-table')) return;
@@ -68,7 +68,7 @@ console.log('ordini_servizi_ge.js caricato');
         if (!res.ok) throw new Error('Errore nel caricamento dati');
         const data = await res.json();
         const arr = data.data || data;
-        console.log('Record ricevuti dal backend:', Array.isArray(arr) ? arr.length : 0, arr);
+        // console.log('Record ricevuti dal backend:', Array.isArray(arr) ? arr.length : 0, arr);
         // Tabulator si aspetta un array di oggetti
         return arr;
     }
@@ -336,14 +336,14 @@ function setupColumnVisibilityControls(table) {
     async function populateMonthFilter() {
         const monthFilter = document.getElementById('month-filter');
         if (!monthFilter) {
-            console.log('month-filter non trovato');
+            // console.log('month-filter non trovato');
             return;
         }
         try {
             const res = await fetch('/api/servizi/ge/months');
             if (!res.ok) throw new Error('Errore nel recupero mesi');
             const months = await res.json();
-            console.log('Mesi ricevuti dal backend:', months);
+            // console.log('Mesi ricevuti dal backend:', months);
             monthFilter.innerHTML = '<option value="" selected>Seleziona un mese...</option>';
             months.forEach(m => {
                 const opt = document.createElement('option');
@@ -351,7 +351,7 @@ function setupColumnVisibilityControls(table) {
                 opt.textContent = m;
                 monthFilter.appendChild(opt);
             });
-            console.log('Select mesi popolato con', months.length, 'opzioni');
+            // console.log('Select mesi popolato con', months.length, 'opzioni');
             if (window.jQuery && jQuery.fn.selectpicker) {
                 jQuery('#month-filter').selectpicker({ dropupAuto: false });
             }
@@ -435,7 +435,7 @@ function setupColumnVisibilityControls(table) {
                 col.updateDefinition({ headerFilter: false });
             });
             tabulatorTable.redraw(true);
-            console.log('DEBUG: Colonne Tabulator dopo patch headerFilter:', tabulatorTable.getColumnDefinitions());
+            // console.log('DEBUG: Colonne Tabulator dopo patch headerFilter:', tabulatorTable.getColumnDefinitions());
         }, 100);
 
         tabulatorTable.on('dataLoaded', function () {
@@ -454,7 +454,7 @@ function setupColumnVisibilityControls(table) {
     // Inizializza solo se presente la tabella
     function avviaGestioneGS() {
         const tabellaPresente = !!document.getElementById('gestione-gs-table');
-        console.log('Inizializzazione Gestione GS, tabella presente:', tabellaPresente);
+        // console.log('Inizializzazione Gestione GS, tabella presente:', tabellaPresente);
         if (tabellaPresente) {
             let exportDiv = document.getElementById('tabulator-export-btns');
             if (!exportDiv) {
@@ -463,12 +463,12 @@ function setupColumnVisibilityControls(table) {
                 exportDiv.className = 'mb-2';
                 document.getElementById('gestione-gs-table').parentNode.insertBefore(exportDiv, document.getElementById('gestione-gs-table'));
             }
-            console.log('Chiamo populateMonthFilter()');
+            // console.log('Chiamo populateMonthFilter()');
             populateMonthFilter().then(() => {
                 setupEventListeners();
             });
         } else {
-            console.log('Tabella gestione-gs-table NON trovata, script non inizializzato');
+            // console.log('Tabella gestione-gs-table NON trovata, script non inizializzato');
         }
     }
 
