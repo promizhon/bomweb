@@ -237,24 +237,9 @@ console.log('ordini_servizi_ge.js caricato');
             return;
         }
 
-        // Spazio per pulsanti azione custom
-        columnsConfig.push({
-            title: 'Azioni',
-            field: 'actions',
-            hozAlign: 'center',
-            headerSort: false,
-            formatter: function () {
-                // Placeholder: aggiungi qui i pulsanti custom
-                return '<button class="btn btn-sm btn-danger">Elimina</button>';
-            },
-            cellClick: function (e, cell) {
-                // Gestisci azione custom (es. elimina)
-                // Esempio: conferma e rimuovi riga
-                if (confirm('Eliminare questa riga?')) {
-                    cell.getRow().delete();
-                }
-            }
-        });
+        // In questa versione il bottone "Elimina" viene omesso.
+        // Se necessario si potrà aggiungere un formatter personalizzato per
+        // gestire altre azioni senza mostrare il pulsante di eliminazione.
 
         // Parametri di ricerca/filtri
         if (!params) params = getParams();
