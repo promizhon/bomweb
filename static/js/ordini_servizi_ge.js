@@ -222,6 +222,9 @@ console.log('ordini_servizi_ge.js caricato');
                 monthFilter.appendChild(opt);
             });
             console.log('Select mesi popolato con', months.length, 'opzioni');
+            if (window.jQuery && jQuery.fn.selectpicker) {
+                jQuery('#month-filter').selectpicker({ dropupAuto: false });
+            }
         } catch (e) {
             showError('Impossibile caricare i mesi: ' + e.message);
             console.error('Errore durante il popolamento dei mesi:', e);
