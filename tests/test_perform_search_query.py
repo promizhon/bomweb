@@ -1,5 +1,6 @@
 import pytest
 from ordini_materiale_articoli import _perform_search_query
+from models.zucchetti import Zucchetti_Articoli
 from unittest.mock import MagicMock
 
 class DummyQuery:
@@ -29,4 +30,5 @@ def test_perform_search_query_filters():
     # Test con tutti i filtri
     query = _perform_search_query(db, codice='A', codicenet='B', descrizione='C D', year='2023')
     # Dovrebbe aver aggiunto filtri per codice, codicenet, descrizione (2 parole), year
-    assert len(query.filters) == 5 
+    assert len(query.filters) == 5
+    assert str(query.filters[0][0][0]) == str(Zucchetti_Articoli.DataAcquisto.startswith('2023'))
