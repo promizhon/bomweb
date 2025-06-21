@@ -268,6 +268,7 @@ console.log('ordini_servizi_ge.js caricato');
                 // Adatta la risposta del backend (DataTables) al formato Tabulator
                 return response.data || [];
             },
+
             layout: 'fitDataTable',
             responsiveLayout: false,
             columns: columnsConfig,
