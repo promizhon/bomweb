@@ -85,19 +85,71 @@ console.log('ordini_servizi_ge.js caricato');
         return true;
     }
 
-    // Utility: esportazione CSV/Excel
+    // Utility: esportazione CSV/Excel tramite backend
     function setupExportButtons(table) {
         const exportDiv = document.getElementById('tabulator-export-btns');
         if (!exportDiv) return;
         exportDiv.innerHTML = '';
+
+        async function handleExport() {
+            const month = document.getElementById('month-filter')?.value || '';
+            const searchVal = document.getElementById('generic-search')?.value || '';
+
+            if (!month) {
+                showError('Seleziona un mese prima di esportare');
+                return;
+            }
+
+            const filters = {};
+            const rtcVal = document.getElementById('rtc-filter')?.value;
+            if (rtcVal) filters['RTC'] = { value: rtcVal, regex: false };
+            if (table && typeof table.getHeaderFilters === 'function') {
+                table.getHeaderFilters().forEach(f => {
+                    if (f.value) filters[f.field] = { value: f.value, regex: false };
+                });
+            }
+
+            const params = new URLSearchParams();
+            params.append('month', month);
+            if (searchVal) params.append('global_search', searchVal);
+            if (Object.keys(filters).length > 0) {
+                params.append('column_filters', JSON.stringify(filters));
+            }
+
+            try {
+                const response = await fetch(`/api/servizi/ge/export?${params.toString()}`);
+                if (!response.ok) throw new Error('Errore durante l\'esportazione');
+
+                const blob = await response.blob();
+                let filename = 'export.xlsx';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.includes('filename=')) {
+                    filename = disposition.split('filename=')[1].replace(/\"/g, '');
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                showError(err.message || 'Errore esportazione');
+            }
+        }
+
         const csvBtn = document.createElement('button');
         csvBtn.className = 'btn btn-outline-primary me-2';
         csvBtn.textContent = 'Esporta CSV';
-        csvBtn.onclick = () => table.download('csv', 'ordini_servizi.csv');
+        csvBtn.onclick = handleExport;
+
         const xlsxBtn = document.createElement('button');
         xlsxBtn.className = 'btn btn-outline-success';
         xlsxBtn.textContent = 'Esporta Excel';
-        xlsxBtn.onclick = () => table.download('xlsx', 'ordini_servizi.xlsx');
+        xlsxBtn.onclick = handleExport;
+
         exportDiv.appendChild(csvBtn);
         exportDiv.appendChild(xlsxBtn);
     }
