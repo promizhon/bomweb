@@ -1,6 +1,3 @@
-{% extends 'base.html' %}
-
-{% block content %}
 <div class="container-fluid pt-3">
     <div id="main-controls-row" class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <!-- Left group: Custom Filters and DataTables Length/Buttons -->
@@ -43,12 +40,9 @@
             <!-- 7. Visibilità colonne -->
             <div id="dt-buttons-container">
                 <div class="dt-buttons">
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="column-toggle-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            Colonne
-                        </button>
-                        <ul id="column-toggle-menu" class="dropdown-menu p-2" aria-labelledby="column-toggle-dropdown"></ul>
-                    </div>
+                    <button id="btn-hide-all" class="btn btn-outline-secondary btn-sm">Nascondi tutto</button>
+                    <button id="btn-show-all" class="btn btn-outline-secondary btn-sm">Abilita tutto</button>
+                    <div id="column-buttons" class="btn-group ms-2"></div>
                 </div>
             </div>
             <!-- 8. Esporta in Excel -->
@@ -60,14 +54,14 @@
         <!-- Right group: DataTables Filter and Record Count -->
         <div class="d-flex align-items-center gap-2">
             <!-- Placeholder for DataTables filter -->
-            <div id="dt-filter-container-2"></div>
+            <div id="dt-filter-container"></div>
             <div id="record-count" class="text-muted small"></div>
         </div>
     </div>
 
     <!-- <div class="row mb-3">
         <div class="col-auto" id="colvis-container">
-             Il pulsante 'Visibilità Colonne' verrà spostato qui via JS
+             Il pulsante 'Visibilità Colonne' verrà spostato qui via JS 
         </div>
     </div> -->
 
@@ -92,7 +86,6 @@
     </div>
     <div class="advanced-filters-overlay"></div>
 </div>
-{% endblock %}
 
 {% block head_extra %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/6.3.1/css/tabulator_bootstrap5.min.css" rel="stylesheet">
