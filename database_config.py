@@ -1,22 +1,26 @@
 import os
-import socket
 from dotenv import load_dotenv
 
 # Controlla se il file .env esiste
 env_file = ".env"
 if os.path.exists(env_file):
-    load_dotenv()  # Carica le variabili da .env
+    load_dotenv()
     print("DEBUG - File .env trovato, variabili caricate.")
-    APP_MODE = os.getenv("APP_MODE", "LOCAL")  # Se non definito, assume LOCAL
+    APP_MODE = os.getenv("APP_MODE", "LOCAL")
 else:
     print("DEBUG - File .env NON trovato, forzando modalità REMOTE.")
     APP_MODE = "REMOTE"
 
-# Configura il database in base all'ambiente
-if APP_MODE == "LOCAL":
-    SQLALCHEMY_DATABASE_URL = "mysql+pymysql://TestLocale:priviet78aA+-+@localhost:3306/gestprev"
-else:
-    SQLALCHEMY_DATABASE_URL = "mysql+pymysql://TestRemoto:priviet78aA+-+@192.168.1.99:3306/gestprev"
+# Credenziali database da variabili d'ambiente
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_NAME = os.getenv("DB_NAME", "gestprev")
+
+if not DB_USER or not DB_PASSWORD:
+    raise RuntimeError("DB_USER e DB_PASSWORD devono essere impostate")
+
+SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 # Setup SQLAlchemy
 from sqlalchemy import create_engine
