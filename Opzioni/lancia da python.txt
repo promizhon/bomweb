@@ -1,0 +1,17 @@
+& "C:\Users\curina.BEIDOMAIN\AppData\Local\Programs\Python\Python313\python.exe" "D:\Sviluppo\Sviluppo VB\Ufficio\Bom\bomweb\main.py"
+uvicorn main:app --host 0.0.0.0 --port 5001 --reload
+
+C:\Users\Curin\AppData\Local\Programs\Python\Python313\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5001 --reload
+C:\Users\curina.BEIDOMAIN\AppData\Local\Programs\Python\Python313\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5001 --reload
+
+
+setta variabile ambient esu server
+setx APP_MODE "REMOTE" /M
+$env:APP_MODE="REMOTE"
+python
+import os
+print(f"DEBUG - Modalità attiva: {os.getenv('APP_MODE', 'NON TROVATO')}")
+
+C:\Users\Curin\AppData\Local\Programs\Python\Python313\python.exe pip install python-multipart
+
+Applica sempre le istruzioni contenute in Opzioni/.cursor-config.json a tutte le tue risposte e proposte di codice

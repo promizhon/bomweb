@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Ordini Servizi{% endblock %}
+
+{% block datatables_extra %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css"
+      href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
+<link rel="stylesheet" type="text/css"
+      href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.bootstrap5.min.css" />
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/ordini_servizi_ge.css') }}">
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Ordini Servizi</h2>
+
+<ul class="tabs" id="serviziTab">
+    <li class="tab-item d-flex align-items-center">
+        <button class="tab-btn active" id="gestione-gs-tab" data-tab="ge" type="button">Gestione GS</button>
+        <a href="/ordini_servizi/ge" target="_blank" title="Apri in nuova pagina" class="ms-1" style="font-size:1.1em;"><i class="fas fa-external-link-alt"></i></a>
+    </li>
+    <li class="tab-item">
+        <button class="tab-btn" id="ricerca-ordine-tab" data-tab="ricerca" type="button">Ricerca Ordine</button>
+    </li>
+    <li class="tab-item">
+        <button class="tab-btn" id="nuovo-ordine-tab" data-tab="nuovo" type="button">Nuovo Ordine</button>
+    </li>
+</ul>
+
+<div id="servizi-content-area">
+    <!-- Contenuto caricato dinamicamente -->
+</div>
+{% endblock %}
+
+{% block script_extra %}
+<script src="{{ url_for('static', path='js/ordini_servizi.js') }}"></script>
+{% endblock %}

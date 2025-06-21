@@ -1,0 +1,69 @@
+.tabs {
+  list-style: none;
+  padding-left: 0;
+  margin: 0 0 15px 0;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 5px;
+    overflow-x: auto;
+  }
+  
+  .tabs li {
+  margin: 0;
+  padding: 0;
+}
+
+.tabs button {
+    position: relative;
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-size: 0.95rem;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .tabs .btn:hover {
+    color: var(--accent) !important;
+    background-color: transparent !important;
+  }
+
+  .tabs button:focus,
+  .tabs button:active {
+    background-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  .tabs button::after {
+    content: '';
+    display: block;
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background-color: var(--accent-yellow);
+    transition: width 0.3s ease;
+  }
+  
+  .tabs .btn.active {
+    color: var(--accent) !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+  
+  .tabs button.active::after {
+    width: 100%;
+  }
+  
+  #materiale-content {
+    padding-top: 10px;
+  }
+  

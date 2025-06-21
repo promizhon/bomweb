@@ -1,0 +1,87 @@
+{% extends "base_login.html" %}
+
+{% block title %}Login - B.O.M.{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column justify-content-center align-items-center vh-100 vw-100" style="background: linear-gradient(135deg, #003DA6, #3498DB); position: fixed; top: 0; left: 0;">
+    <!-- Barra superiore -->
+    <div style="position: absolute; top: 0; left: 0; width: 100%; padding: 20px;">
+        <div style="background: rgba(255, 255, 255, 0.98); border: 2px solid #BDD70F; border-radius: 20px; padding: 15px; width: 98%; margin: 0 auto;">
+            <img src="/static/img/bei-logo.png" alt="B.O.M. Logo" style="height: 40px;">
+        </div>
+    </div>
+
+    <div class="text-center mb-5">
+        <h1 style="font-size: 3rem; font-family: 'Montserrat', sans-serif; color: #BDD70F;">
+            <span class="fw-bold">B.O.M.</span>
+            <span class="ms-3 fw-light" style="font-size: 2rem;">BEI Order Management</span>
+        </h1>
+    </div>
+
+    <div class="card p-4 shadow-lg" style="width: 100%; max-width: 400px; border-radius: 20px; border: 2px solid #BDD70F; background: rgba(255, 255, 255, 0.98);">
+        {% if error %}
+        <div class="alert alert-danger animate__animated animate__shakeX" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+        <form method="post" action="/login" class="mt-4" autocomplete="on" name="loginform">
+            <div class="mb-4">
+                <label for="username" class="form-label fw-semibold">Username</label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text border-0 bg-light">
+                        <i class="fas fa-user text-primary"></i>
+                    </span>
+                    <input type="text" class="form-control border-0 bg-light" 
+                           id="username" name="username" required 
+                           placeholder="Inserisci username"
+                           value="{{ username or '' }}"
+                           autocomplete="username"
+                           data-lpignore="false">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="password" class="form-label fw-semibold">Password</label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text border-0 bg-light">
+                        <i class="fas fa-lock text-primary"></i>
+                    </span>
+                    <input type="password" class="form-control border-0 bg-light" 
+                           id="password" name="password" required 
+                           placeholder="Inserisci password"
+                           autocomplete="current-password"
+                           data-lpignore="false">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-100 mb-3 shadow-sm">
+                <i class="fas fa-sign-in-alt me-2"></i>Accedi
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700&display=swap" rel="stylesheet">
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    .form-control:focus, .input-group-text {
+        box-shadow: none !important;
+    }
+    .input-group {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .btn-primary {
+        padding: 12px;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+</style>
+{% endblock %}

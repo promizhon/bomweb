@@ -1,0 +1,91 @@
+<div class="container-fluid pt-3">
+    <div id="main-controls-row" class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <!-- Left group: Custom Filters and DataTables Length/Buttons -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- 1. Seleziona mese -->
+            <div>
+                <label for="month-filter" class="form-label fw-bold visually-hidden">Mese Presentazione</label>
+                <select id="month-filter" class="form-select form-select-sm">
+                    <option value="" selected>Seleziona un mese...</option>
+                </select>
+            </div>
+            <!-- 2. Ricerca RTC -->
+            <div>
+                <label for="rtc-filter" class="form-label fw-bold visually-hidden">Seleziona RTC</label>
+                <select id="rtc-filter" class="form-select form-select-sm">
+                    <option value="" selected>Seleziona RTC...</option>
+                </select>
+            </div>
+            <!-- 3. Ricerca custom (solo con invio) -->
+            <div>
+                <label for="generic-search" class="form-label fw-bold visually-hidden">Cerca e premi Invio...</label>
+                <input type="text" id="generic-search" class="form-control form-select-sm"
+                    placeholder="Cerca e premi Invio...">
+            </div>
+            <!-- Nascondo la ricerca DataTables -->
+            <div id="dt-filter-container" style="display:none"></div>
+            <!-- 4. Visualizza elementi (scritta sopra il menu) -->
+            <div id="dt-length-container" class="d-flex flex-column align-items-start justify-content-end">
+                <!-- La label verrà gestita da DataTables, ma forzo la colonna -->
+            </div>
+            <!-- 5. Modifica attiva -->
+            <div class="form-check form-switch d-inline-flex align-items-center ms-2">
+                <input class="form-check-input" type="checkbox" id="toggle-edit-mode">
+                <label class="form-check-label small ms-1" for="toggle-edit-mode">Modifica attiva</label>
+            </div>
+            <!-- 6. Filtri -->
+            <button class="btn btn-outline-secondary" id="advanced-filters-btn">
+                <i class="fas fa-filter"></i> Filtri
+            </button>
+            <!-- 7. Visibilità colonne -->
+            <div id="dt-buttons-container"></div>
+            <!-- 8. Esporta in Excel -->
+            <button class="btn btn-sm btn-outline-success" id="exportBtn">
+                <i class="fas fa-file-excel me-1"></i> Esporta Excel
+            </button>
+        </div>
+
+        <!-- Right group: DataTables Filter and Record Count -->
+        <div class="d-flex align-items-center gap-2">
+            <!-- Placeholder for DataTables filter -->
+            <div id="dt-filter-container"></div>
+            <div id="record-count" class="text-muted small"></div>
+        </div>
+    </div>
+
+    <!-- <div class="row mb-3">
+        <div class="col-auto" id="colvis-container">
+             Il pulsante 'Visibilità Colonne' verrà spostato qui via JS 
+        </div>
+    </div> -->
+
+
+    <div class="table-wrapper-fix">
+        <div id="tabulator-export-btns" class="mb-2"></div>
+        <div id="gestione-gs-table"></div>
+    </div>
+
+    <!-- Advanced Filters Panel -->
+    <div id="advanced-filters-panel" class="advanced-filters-panel">
+        <div class="advanced-filters-header">
+            <h5 class="mb-0">Filtri Avanzati</h5>
+            <button type="button" class="btn-close" id="close-filters-panel"></button>
+        </div>
+        <div class="advanced-filters-body">
+            <div id="column-filters-container">
+                <!-- Column filters will be dynamically added here -->
+            </div>
+
+        </div>
+    </div>
+    <div class="advanced-filters-overlay"></div>
+</div>
+
+{% block head_extra %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/6.3.1/css/tabulator_bootstrap5.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', path='css/ordini_servizi_ge.css') }}">
+{% endblock %}
+{% block script_extra %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/6.3.1/js/tabulator.min.js"></script>
+<script src="{{ url_for('static', path='js/ordini_servizi_ge.js') }}"></script>
+{% endblock %}
