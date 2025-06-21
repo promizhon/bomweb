@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect
+from models.carrefour_log import CarrefourLog
 from database_config import get_db
 from urllib.parse import unquote
 import pandas as pd
@@ -260,6 +261,11 @@ async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db
             print(f"DEBUG UPDATE - Campo non valido: {field}")
             return JSONResponse({"status": "error", "message": "Campo non valido"}, status_code=400)
 
+        # Recupera il valore precedente per il log
+        old_value_query = text(f"SELECT `{field}` FROM `{TABLE_NAME}` WHERE ID = :pk")
+        old_value_result = db.execute(old_value_query, {'pk': pk}).fetchone()
+        old_value = old_value_result[0] if old_value_result else None
+
         update_query = text(f"""
             UPDATE `{TABLE_NAME}`
             SET `{field}` = :value
@@ -276,6 +282,19 @@ async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db
         
         result = db.execute(update_query, query_params)
         db.commit()
+
+        # Inserisci voce di log solo se l'update ha avuto effetto
+        if result.rowcount:
+            log_entry = CarrefourLog(
+                utente=request.cookies.get("session", ""),
+                campo_old=str(old_value) if old_value is not None else None,
+                campo_new=str(value),
+                data=datetime.utcnow(),
+                id_tabella=pk,
+                colonna=field
+            )
+            db.add(log_entry)
+            db.commit()
         
         if result.rowcount == 0:
             return JSONResponse({"status": "error", "message": "Record non trovato"}, status_code=404)
