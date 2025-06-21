@@ -3,7 +3,7 @@
 /* Stile globale per il corpo del testo */
 body {
     font-family: 'Inter', 'Segoe UI', 'Roboto', 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 0.4rem; /* 10px, ultra compatto */
+    font-size: 1rem; /* dimensione leggibile per il testo generico */
     padding-top: 70px; /* Altezza della navbar */
 }
 :root {
