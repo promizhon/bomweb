@@ -15,6 +15,13 @@
     max-width: 180px;
 }
 
+/* Ensure custom select components always drop down */
+.bootstrap-select[data-dropup-auto="false"].dropup .dropdown-menu {
+    top: 100% !important;
+    bottom: auto !important;
+    transform: translateY(0) !important;
+}
+
 .nav-tabs#serviziTab .nav-link:hover {
     color: var(--accent) !important;
 }
