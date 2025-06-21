@@ -193,54 +193,44 @@ function applyVisibleColumnsState(table) {
 }
 
 function setupColumnVisibilityControls(table) {
-    const container = document.getElementById('column-buttons');
-    if (!container) return;
-    container.innerHTML = '';
+    const menu = document.getElementById('column-toggle-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
 
     table.getColumns().forEach(col => {
         const field = col.getField();
         if (field === 'actions') return;
-        const btn = document.createElement('button');
-        btn.className = col.isVisible() ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
-        btn.textContent = col.getDefinition().title;
-        btn.dataset.field = field;
-        btn.addEventListener('click', function () {
+        const li = document.createElement('li');
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input';
+        checkbox.id = `toggle-col-${field}`;
+        checkbox.checked = col.isVisible();
+        checkbox.addEventListener('change', function () {
             const column = table.getColumn(field);
             if (!column) return;
-            if (column.isVisible()) {
-                column.hide();
-                this.className = 'btn btn-outline-secondary btn-sm';
-                visibleColumnsState = visibleColumnsState.filter(f => f !== field);
-            } else {
+            if (this.checked) {
                 column.show();
-                this.className = 'btn btn-primary btn-sm';
                 if (!visibleColumnsState.includes(field)) visibleColumnsState.push(field);
+            } else {
+                column.hide();
+                visibleColumnsState = visibleColumnsState.filter(f => f !== field);
             }
         });
         if (col.isVisible() && !visibleColumnsState.includes(field)) {
             visibleColumnsState.push(field);
         }
-        container.appendChild(btn);
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = checkbox.id;
+        label.textContent = col.getDefinition().title;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        li.appendChild(div);
+        menu.appendChild(li);
     });
-
-    const btnHideAll = document.getElementById('btn-hide-all');
-    const btnShowAll = document.getElementById('btn-show-all');
-
-    if (btnHideAll) {
-        btnHideAll.addEventListener('click', () => {
-            table.getColumns().forEach(col => col.hide());
-            container.querySelectorAll('button').forEach(b => b.className = 'btn btn-outline-secondary btn-sm');
-            visibleColumnsState = [];
-        });
-    }
-
-    if (btnShowAll) {
-        btnShowAll.addEventListener('click', () => {
-            table.getColumns().forEach(col => col.show());
-            container.querySelectorAll('button').forEach(b => b.className = 'btn btn-primary btn-sm');
-            visibleColumnsState = table.getColumns().map(c => c.getField()).filter(f => f !== 'actions');
-        });
-    }
 }
 
 

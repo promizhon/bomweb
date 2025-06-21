@@ -40,9 +40,12 @@
             <!-- 7. Visibilità colonne -->
             <div id="dt-buttons-container">
                 <div class="dt-buttons">
-                    <button id="btn-hide-all" class="btn btn-outline-secondary btn-sm">Nascondi tutto</button>
-                    <button id="btn-show-all" class="btn btn-outline-secondary btn-sm">Abilita tutto</button>
-                    <div id="column-buttons" class="btn-group ms-2"></div>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="column-toggle-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Colonne
+                        </button>
+                        <ul id="column-toggle-menu" class="dropdown-menu p-2" aria-labelledby="column-toggle-dropdown"></ul>
+                    </div>
                 </div>
             </div>
             <!-- 8. Esporta in Excel -->
