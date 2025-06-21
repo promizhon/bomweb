@@ -86,19 +86,71 @@ console.log('ordini_servizi_ge.js caricato');
         return true;
     }
 
-    // Utility: esportazione CSV/Excel
+    // Utility: esportazione CSV/Excel tramite backend
     function setupExportButtons(table) {
         const exportDiv = document.getElementById('tabulator-export-btns');
         if (!exportDiv) return;
         exportDiv.innerHTML = '';
+
+        async function handleExport() {
+            const month = document.getElementById('month-filter')?.value || '';
+            const searchVal = document.getElementById('generic-search')?.value || '';
+
+            if (!month) {
+                showError('Seleziona un mese prima di esportare');
+                return;
+            }
+
+            const filters = {};
+            const rtcVal = document.getElementById('rtc-filter')?.value;
+            if (rtcVal) filters['RTC'] = { value: rtcVal, regex: false };
+            if (table && typeof table.getHeaderFilters === 'function') {
+                table.getHeaderFilters().forEach(f => {
+                    if (f.value) filters[f.field] = { value: f.value, regex: false };
+                });
+            }
+
+            const params = new URLSearchParams();
+            params.append('month', month);
+            if (searchVal) params.append('global_search', searchVal);
+            if (Object.keys(filters).length > 0) {
+                params.append('column_filters', JSON.stringify(filters));
+            }
+
+            try {
+                const response = await fetch(`/api/servizi/ge/export?${params.toString()}`);
+                if (!response.ok) throw new Error('Errore durante l\'esportazione');
+
+                const blob = await response.blob();
+                let filename = 'export.xlsx';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.includes('filename=')) {
+                    filename = disposition.split('filename=')[1].replace(/\"/g, '');
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                showError(err.message || 'Errore esportazione');
+            }
+        }
+
         const csvBtn = document.createElement('button');
         csvBtn.className = 'btn btn-outline-primary me-2';
         csvBtn.textContent = 'Esporta CSV';
-        csvBtn.onclick = () => table.download('csv', 'ordini_servizi.csv');
+        csvBtn.onclick = handleExport;
+
         const xlsxBtn = document.createElement('button');
         xlsxBtn.className = 'btn btn-outline-success';
         xlsxBtn.textContent = 'Esporta Excel';
-        xlsxBtn.onclick = () => table.download('xlsx', 'ordini_servizi.xlsx');
+        xlsxBtn.onclick = handleExport;
+
         exportDiv.appendChild(csvBtn);
         exportDiv.appendChild(xlsxBtn);
     }
@@ -109,80 +161,88 @@ console.log('ordini_servizi_ge.js caricato');
         if (!toggle) return;
         toggle.addEventListener('change', function () {
             editModeEnabled = this.checked;
-            table.setOptions({
-                cellEdited: editModeEnabled ? onCellEdit : null
-            });
-        });
-    }
+table.getColumns().forEach(col => {
+    const def = col.getDefinition();
+    const canEdit = def.editor !== false && def.editor !== undefined;
+    col.updateDefinition({ editable: editModeEnabled && canEdit });
+});
 
-    function applyVisibleColumnsState(table) {
-        if (!visibleColumnsState.length) {
-            visibleColumnsState = table
-                .getColumns()
-                .map(c => c.getField())
-                .filter(f => f !== 'actions');
-            return;
+table.setOptions({
+    cellEdited: editModeEnabled ? onCellEdit : null
+});
+});
+
+// fuori da quel blocco, definisci le nuove funzioni:
+
+function applyVisibleColumnsState(table) {
+    if (!visibleColumnsState.length) {
+        visibleColumnsState = table
+            .getColumns()
+            .map(c => c.getField())
+            .filter(f => f !== 'actions');
+        return;
+    }
+    table.getColumns().forEach(col => {
+        const field = col.getField();
+        if (visibleColumnsState.includes(field)) {
+            col.show();
+        } else {
+            col.hide();
         }
-        table.getColumns().forEach(col => {
-            const field = col.getField();
-            if (visibleColumnsState.includes(field)) {
-                col.show();
+    });
+}
+
+function setupColumnVisibilityControls(table) {
+    const container = document.getElementById('column-buttons');
+    if (!container) return;
+    container.innerHTML = '';
+
+    table.getColumns().forEach(col => {
+        const field = col.getField();
+        if (field === 'actions') return;
+        const btn = document.createElement('button');
+        btn.className = col.isVisible() ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
+        btn.textContent = col.getDefinition().title;
+        btn.dataset.field = field;
+        btn.addEventListener('click', function () {
+            const column = table.getColumn(field);
+            if (!column) return;
+            if (column.isVisible()) {
+                column.hide();
+                this.className = 'btn btn-outline-secondary btn-sm';
+                visibleColumnsState = visibleColumnsState.filter(f => f !== field);
             } else {
-                col.hide();
+                column.show();
+                this.className = 'btn btn-primary btn-sm';
+                if (!visibleColumnsState.includes(field)) visibleColumnsState.push(field);
             }
+        });
+        if (col.isVisible() && !visibleColumnsState.includes(field)) {
+            visibleColumnsState.push(field);
+        }
+        container.appendChild(btn);
+    });
+
+    const btnHideAll = document.getElementById('btn-hide-all');
+    const btnShowAll = document.getElementById('btn-show-all');
+
+    if (btnHideAll) {
+        btnHideAll.addEventListener('click', () => {
+            table.getColumns().forEach(col => col.hide());
+            container.querySelectorAll('button').forEach(b => b.className = 'btn btn-outline-secondary btn-sm');
+            visibleColumnsState = [];
         });
     }
 
-    function setupColumnVisibilityControls(table) {
-        const container = document.getElementById('column-buttons');
-        if (!container) return;
-        container.innerHTML = '';
-
-        table.getColumns().forEach(col => {
-            const field = col.getField();
-            if (field === 'actions') return;
-            const btn = document.createElement('button');
-            btn.className = col.isVisible() ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
-            btn.textContent = col.getDefinition().title;
-            btn.dataset.field = field;
-            btn.addEventListener('click', function () {
-                const column = table.getColumn(field);
-                if (!column) return;
-                if (column.isVisible()) {
-                    column.hide();
-                    this.className = 'btn btn-outline-secondary btn-sm';
-                    visibleColumnsState = visibleColumnsState.filter(f => f !== field);
-                } else {
-                    column.show();
-                    this.className = 'btn btn-primary btn-sm';
-                    if (!visibleColumnsState.includes(field)) visibleColumnsState.push(field);
-                }
-            });
-            if (col.isVisible() && !visibleColumnsState.includes(field)) {
-                visibleColumnsState.push(field);
-            }
-            container.appendChild(btn);
+    if (btnShowAll) {
+        btnShowAll.addEventListener('click', () => {
+            table.getColumns().forEach(col => col.show());
+            container.querySelectorAll('button').forEach(b => b.className = 'btn btn-primary btn-sm');
+            visibleColumnsState = table.getColumns().map(c => c.getField()).filter(f => f !== 'actions');
         });
-
-        const btnHideAll = document.getElementById('btn-hide-all');
-        const btnShowAll = document.getElementById('btn-show-all');
-
-        if (btnHideAll) {
-            btnHideAll.addEventListener('click', () => {
-                table.getColumns().forEach(col => col.hide());
-                container.querySelectorAll('button').forEach(b => b.className = 'btn btn-outline-secondary btn-sm');
-                visibleColumnsState = [];
-            });
-        }
-
-        if (btnShowAll) {
-            btnShowAll.addEventListener('click', () => {
-                table.getColumns().forEach(col => col.show());
-                container.querySelectorAll('button').forEach(b => b.className = 'btn btn-primary btn-sm');
-                visibleColumnsState = table.getColumns().map(c => c.getField()).filter(f => f !== 'actions');
-            });
-        }
     }
+}
+
 
     // Callback: cella editata
     async function onCellEdit(cell) {
@@ -292,6 +352,9 @@ console.log('ordini_servizi_ge.js caricato');
                 monthFilter.appendChild(opt);
             });
             console.log('Select mesi popolato con', months.length, 'opzioni');
+            if (window.jQuery && jQuery.fn.selectpicker) {
+                jQuery('#month-filter').selectpicker({ dropupAuto: false });
+            }
         } catch (e) {
             showError('Impossibile caricare i mesi: ' + e.message);
             console.error('Errore durante il popolamento dei mesi:', e);
@@ -307,24 +370,9 @@ console.log('ordini_servizi_ge.js caricato');
             return;
         }
 
-        // Spazio per pulsanti azione custom
-        columnsConfig.push({
-            title: 'Azioni',
-            field: 'actions',
-            hozAlign: 'center',
-            headerSort: false,
-            formatter: function () {
-                // Placeholder: aggiungi qui i pulsanti custom
-                return '<button class="btn btn-sm btn-danger">Elimina</button>';
-            },
-            cellClick: function (e, cell) {
-                // Gestisci azione custom (es. elimina)
-                // Esempio: conferma e rimuovi riga
-                if (confirm('Eliminare questa riga?')) {
-                    cell.getRow().delete();
-                }
-            }
-        });
+        // In questa versione il bottone "Elimina" viene omesso.
+        // Se necessario si potrà aggiungere un formatter personalizzato per
+        // gestire altre azioni senza mostrare il pulsante di eliminazione.
 
         // Parametri di ricerca/filtri
         if (!params) params = getParams();
@@ -364,8 +412,14 @@ console.log('ordini_servizi_ge.js caricato');
             rowClick: function (e, row) {
                 row.toggleSelect();
             },
-            rowSelected: function (row) {},
-            rowDeselected: function (row) {},
+            rowSelected: function (row) {
+                const el = row.getElement();
+                if (el) el.classList.add('table-row-selected');
+            },
+            rowDeselected: function (row) {
+                const el = row.getElement();
+                if (el) el.classList.remove('table-row-selected');
+            },
             tableBuilt: function() {
                 // Forza la rimozione dei filtri header
                 this.getColumns().forEach(col => {
