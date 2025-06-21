@@ -17,6 +17,7 @@ console.log('ordini_servizi_ge.js caricato');
     let columnsConfig = [];
     let editModeEnabled = false;
     let currentParams = {};
+    let visibleColumnsState = [];
 
     // Utility: mostra messaggi di errore
     function showError(msg) {
@@ -35,7 +36,7 @@ console.log('ordini_servizi_ge.js caricato');
                 field: col,
                 sorter: 'string',
                 editor: col.toLowerCase() === 'id' ? false : 'input',
-                visible: true,
+                visible: visibleColumnsState.length === 0 ? true : visibleColumnsState.includes(col),
                 headerSort: true,
                 cssClass: col.toLowerCase() === 'id' ? '' : 'editable'
             }));
@@ -50,7 +51,7 @@ console.log('ordini_servizi_ge.js caricato');
                 field: c.field,
                 sorter: 'string',
                 editor: c.field.toLowerCase() === 'id' ? false : 'input',
-                visible: true,
+                visible: visibleColumnsState.length === 0 ? true : visibleColumnsState.includes(c.field),
                 headerSort: true,
                 cssClass: c.field.toLowerCase() === 'id' ? '' : 'editable'
             };
@@ -112,6 +113,75 @@ console.log('ordini_servizi_ge.js caricato');
                 cellEdited: editModeEnabled ? onCellEdit : null
             });
         });
+    }
+
+    function applyVisibleColumnsState(table) {
+        if (!visibleColumnsState.length) {
+            visibleColumnsState = table
+                .getColumns()
+                .map(c => c.getField())
+                .filter(f => f !== 'actions');
+            return;
+        }
+        table.getColumns().forEach(col => {
+            const field = col.getField();
+            if (visibleColumnsState.includes(field)) {
+                col.show();
+            } else {
+                col.hide();
+            }
+        });
+    }
+
+    function setupColumnVisibilityControls(table) {
+        const container = document.getElementById('column-buttons');
+        if (!container) return;
+        container.innerHTML = '';
+
+        table.getColumns().forEach(col => {
+            const field = col.getField();
+            if (field === 'actions') return;
+            const btn = document.createElement('button');
+            btn.className = col.isVisible() ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
+            btn.textContent = col.getDefinition().title;
+            btn.dataset.field = field;
+            btn.addEventListener('click', function () {
+                const column = table.getColumn(field);
+                if (!column) return;
+                if (column.isVisible()) {
+                    column.hide();
+                    this.className = 'btn btn-outline-secondary btn-sm';
+                    visibleColumnsState = visibleColumnsState.filter(f => f !== field);
+                } else {
+                    column.show();
+                    this.className = 'btn btn-primary btn-sm';
+                    if (!visibleColumnsState.includes(field)) visibleColumnsState.push(field);
+                }
+            });
+            if (col.isVisible() && !visibleColumnsState.includes(field)) {
+                visibleColumnsState.push(field);
+            }
+            container.appendChild(btn);
+        });
+
+        const btnHideAll = document.getElementById('btn-hide-all');
+        const btnShowAll = document.getElementById('btn-show-all');
+
+        if (btnHideAll) {
+            btnHideAll.addEventListener('click', () => {
+                table.getColumns().forEach(col => col.hide());
+                container.querySelectorAll('button').forEach(b => b.className = 'btn btn-outline-secondary btn-sm');
+                visibleColumnsState = [];
+            });
+        }
+
+        if (btnShowAll) {
+            btnShowAll.addEventListener('click', () => {
+                table.getColumns().forEach(col => col.show());
+                container.querySelectorAll('button').forEach(b => b.className = 'btn btn-primary btn-sm');
+                visibleColumnsState = table.getColumns().map(c => c.getField()).filter(f => f !== 'actions');
+            });
+        }
     }
 
     // Callback: cella editata
@@ -322,6 +392,9 @@ console.log('ordini_servizi_ge.js caricato');
         setupExportButtons(tabulatorTable);
         // Setup toggle edit mode
         setupEditToggle(tabulatorTable);
+        // Applica visibilità colonne e controlli
+        applyVisibleColumnsState(tabulatorTable);
+        setupColumnVisibilityControls(tabulatorTable);
     }
 
     // Inizializza solo se presente la tabella
