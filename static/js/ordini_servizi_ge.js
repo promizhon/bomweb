@@ -346,8 +346,14 @@ console.log('ordini_servizi_ge.js caricato');
             rowClick: function (e, row) {
                 row.toggleSelect();
             },
-            rowSelected: function (row) {},
-            rowDeselected: function (row) {},
+            rowSelected: function (row) {
+                const el = row.getElement();
+                if (el) el.classList.add('table-row-selected');
+            },
+            rowDeselected: function (row) {
+                const el = row.getElement();
+                if (el) el.classList.remove('table-row-selected');
+            },
             tableBuilt: function() {
                 // Forza la rimozione dei filtri header
                 this.getColumns().forEach(col => {

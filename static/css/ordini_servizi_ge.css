@@ -499,10 +499,9 @@ body.sidebar-collapsed .main-content {
 }
 
 /* Stile per le righe selezionate */
-/* Rimosso: .table-row-selected {
-    background-color: #d0e9fa !important; 
-    Un blu chiaro 
-} */
+.table-row-selected {
+    background-color: #d0e9fa !important; /* un blu chiaro */
+}
 
 /* Label DataTables sopra il select "Visualizza elementi" */
 #dt-length-container .dataTables_length label {
