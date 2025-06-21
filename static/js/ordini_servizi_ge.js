@@ -160,6 +160,11 @@ console.log('ordini_servizi_ge.js caricato');
         if (!toggle) return;
         toggle.addEventListener('change', function () {
             editModeEnabled = this.checked;
+            table.getColumns().forEach(col => {
+                const def = col.getDefinition();
+                const canEdit = def.editor !== false && def.editor !== undefined;
+                col.updateDefinition({ editable: editModeEnabled && canEdit });
+            });
             table.setOptions({
                 cellEdited: editModeEnabled ? onCellEdit : null
             });
