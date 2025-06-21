@@ -33,10 +33,10 @@ console.log('ordini_servizi_ge.js caricato');
                 title: col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
                 field: col,
                 sorter: 'string',
-                editor: col === 'id' ? false : 'input',
+                editor: col.toLowerCase() === 'id' ? false : 'input',
                 visible: true,
                 headerSort: true,
-                cssClass: col === 'id' ? 'editable' : ''
+                cssClass: col.toLowerCase() === 'id' ? '' : 'editable'
             }));
         }
         // Altrimenti, rimuovi headerFilter come già fatto
@@ -48,10 +48,10 @@ console.log('ordini_servizi_ge.js caricato');
                 title: c.title || c.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
                 field: c.field,
                 sorter: 'string',
-                editor: c.field === 'id' ? false : 'input',
+                editor: c.field.toLowerCase() === 'id' ? false : 'input',
                 visible: true,
                 headerSort: true,
-                cssClass: c.field === 'id' ? 'editable' : ''
+                cssClass: c.field.toLowerCase() === 'id' ? '' : 'editable'
             };
         });
     }
