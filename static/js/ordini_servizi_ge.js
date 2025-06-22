@@ -432,6 +432,21 @@ function setupColumnVisibilityControls(table) {
             refreshRTCFilter(currentParams);
         });
 
+        // Ricarica i dati quando cambia il mese selezionato
+        const monthFilter = document.getElementById('month-filter');
+        if (monthFilter) {
+            monthFilter.addEventListener('change', () => {
+                const rtcFilter = document.getElementById('rtc-filter');
+                const params = {
+                    month_filter: monthFilter.value,
+                    rtc_filter: rtcFilter ? rtcFilter.value : ''
+                };
+                currentParams = params;
+                tabulatorTable.setData('/api/servizi/ge/data', params);
+                refreshRTCFilter(params);
+            });
+        }
+
         // Setup esportazione
         setupExportButtons(tabulatorTable);
         // Setup toggle edit mode
