@@ -13,6 +13,8 @@ from database_config import init_db, APP_MODE, get_db
 from ordini_materiale_articoli import router as materiali_router
 from impostazioni import router as impostazioni_router
 from ordini_servizi import router as servizi_router
+# Importa il nuovo router per ordini_servizi_ge
+from ordini_servizi_ge import router as servizi_ge_router
 from auth import router as auth_router
 from fastapi.responses import FileResponse
 from typing import Optional
@@ -43,6 +45,8 @@ app.include_router(materiali_router)
 app.include_router(impostazioni_router)
 app.include_router(auth_router)
 app.include_router(servizi_router)
+# Includi il nuovo router nell'applicazione
+app.include_router(servizi_ge_router)
 
 @app.get("/")
 async def index(request: Request, db: Session = Depends(get_db)):
