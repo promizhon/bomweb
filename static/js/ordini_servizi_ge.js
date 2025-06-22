@@ -322,6 +322,80 @@ function setupColumnVisibilityControls(table) {
         }
     }
 
+    function getParams() {
+        const monthFilter = document.getElementById('month-filter');
+        const rtcFilter = document.getElementById('rtc-filter');
+        const searchInput = document.getElementById('generic-search');
+        return {
+            month_filter: monthFilter ? monthFilter.value : '',
+            rtc_filter: rtcFilter ? rtcFilter.value : '',
+            search: { value: searchInput ? searchInput.value : '' }
+        };
+    }
+
+    async function refreshRTCFilter(params) {
+        const rtcFilter = document.getElementById('rtc-filter');
+        if (!rtcFilter) return;
+        rtcFilter.disabled = true;
+        rtcFilter.innerHTML = '<option value="" selected>Seleziona RTC...</option>';
+        if (!params.month_filter) return;
+        try {
+            const payload = {
+                month_filter: params.month_filter,
+                search: { value: params.search ? params.search.value : '' },
+                columns: []
+            };
+            const response = await fetch('/api/servizi/ge/unique_values', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            let rtcValues = await response.json();
+            rtcValues = Array.from(new Set(rtcValues));
+            rtcValues.forEach(rtc => {
+                const opt = document.createElement('option');
+                opt.value = rtc;
+                opt.textContent = rtc;
+                rtcFilter.appendChild(opt);
+            });
+            if (rtcValues.length > 0) rtcFilter.disabled = false;
+        } catch (error) {
+            console.error('Errore nel caricamento dei valori RTC:', error);
+        }
+    }
+
+    async function loadOrUpdateTable() {
+        const params = getParams();
+        if (!params.month_filter) return; // richiede mese selezionato
+        currentParams = params;
+        if (!tabulatorTable) {
+            await initTabulator(params);
+        } else {
+            await tabulatorTable.setData('/api/servizi/ge/data', params);
+        }
+        refreshRTCFilter(params);
+    }
+
+    function setupEventListeners() {
+        const monthFilter = document.getElementById('month-filter');
+        const rtcFilter = document.getElementById('rtc-filter');
+        const searchInput = document.getElementById('generic-search');
+        if (monthFilter) {
+            monthFilter.addEventListener('change', loadOrUpdateTable);
+        }
+        if (rtcFilter) {
+            rtcFilter.disabled = true;
+            rtcFilter.addEventListener('change', loadOrUpdateTable);
+        }
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter' || this.value === '') {
+                    loadOrUpdateTable();
+                }
+            });
+        }
+    }
+
     // Popola dinamicamente il select dei mesi
     async function populateMonthFilter() {
         const monthFilter = document.getElementById('month-filter');
@@ -446,6 +520,7 @@ function setupColumnVisibilityControls(table) {
                 refreshRTCFilter(params);
             });
         }
+
 
         // Setup esportazione
         setupExportButtons(tabulatorTable);
