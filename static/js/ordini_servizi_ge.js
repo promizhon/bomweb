@@ -311,7 +311,14 @@ function setupColumnVisibilityControls(table) {
         }
         if (rtcFilter) {
             rtcFilter.disabled = true;
-            rtcFilter.addEventListener('change', loadOrUpdateTable);
+            rtcFilter.addEventListener('change', function () {
+                if (!tabulatorTable || !currentParams.month_filter) return;
+                currentParams.rtc_filter = this.value;
+                tabulatorTable.setData('/api/servizi/ge/data', {
+                    month_filter: currentParams.month_filter,
+                    rtc_filter: this.value
+                });
+            });
         }
         if (searchInput) {
             searchInput.addEventListener('keyup', function(e) {
