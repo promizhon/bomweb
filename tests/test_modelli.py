@@ -1,10 +1,14 @@
+from datetime import datetime
 from models.utente import Utente
 from models.zucchetti import Zucchetti_Articoli
+from models.carrefour_log import CarrefourLog
+
 
 def test_utente_creation():
     user = Utente(login='test', password='pw')
     assert user.login == 'test'
     assert user.password == 'pw'
+
 
 def test_zucchetti_articoli_creation():
     art = Zucchetti_Articoli(
@@ -30,4 +34,21 @@ def test_zucchetti_articoli_creation():
     assert art.GiacenzaGenova == 3.0
     assert art.GiacenzaBologna == 4.0
     assert art.GiacenzaRoma == 5.0
-    assert art.Importo == 10.0 
+    assert art.Importo == 10.0
+
+
+def test_carrefour_log_creation():
+    log = CarrefourLog(
+        utente='tester',
+        campo_old='old',
+        campo_new='new',
+        data=datetime(2024, 1, 1),
+        id_tabella=1,
+        colonna='col'
+    )
+    assert log.utente == 'tester'
+    assert log.campo_old == 'old'
+    assert log.campo_new == 'new'
+    assert log.id_tabella == 1
+    assert log.colonna == 'col'
+

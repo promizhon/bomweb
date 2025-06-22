@@ -149,7 +149,9 @@
                 const tabName = this.dataset.tab;
                 console.log('Tab cliccato:', tabName);
                 // Caricamento dinamico per tutti i tab
-                fetch(`/ordini_servizi/${tabName}`)
+                fetch(`/ordini_servizi/${tabName}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
                     .then(response => {
                         if (!response.ok) throw new Error('Errore di rete');
                         return response.text();

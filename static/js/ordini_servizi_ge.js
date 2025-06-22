@@ -8,7 +8,7 @@
 // <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
 // <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 
-console.log('ordini_servizi_ge.js caricato');
+// console.log('ordini_servizi_ge.js caricato');
 
 (function () {
     if (!document.getElementById('gestione-gs-table')) return;
@@ -16,6 +16,8 @@ console.log('ordini_servizi_ge.js caricato');
     let tabulatorTable = null;
     let columnsConfig = [];
     let editModeEnabled = false;
+    let currentParams = {};
+    let visibleColumnsState = [];
 
     // Utility: mostra messaggi di errore
     function showError(msg) {
@@ -33,10 +35,10 @@ console.log('ordini_servizi_ge.js caricato');
                 title: col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
                 field: col,
                 sorter: 'string',
-                editor: col === 'id' ? false : 'input',
-                visible: true,
+                editor: col.toLowerCase() === 'id' ? false : 'input',
+                visible: visibleColumnsState.length === 0 ? true : visibleColumnsState.includes(col),
                 headerSort: true,
-                cssClass: col === 'id' ? 'editable' : ''
+                cssClass: col.toLowerCase() === 'id' ? '' : 'editable'
             }));
         }
         // Altrimenti, rimuovi headerFilter come già fatto
@@ -48,10 +50,10 @@ console.log('ordini_servizi_ge.js caricato');
                 title: c.title || c.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
                 field: c.field,
                 sorter: 'string',
-                editor: c.field === 'id' ? false : 'input',
-                visible: true,
+                editor: c.field.toLowerCase() === 'id' ? false : 'input',
+                visible: visibleColumnsState.length === 0 ? true : visibleColumnsState.includes(c.field),
                 headerSort: true,
-                cssClass: c.field === 'id' ? 'editable' : ''
+                cssClass: c.field.toLowerCase() === 'id' ? '' : 'editable'
             };
         });
     }
@@ -66,7 +68,7 @@ console.log('ordini_servizi_ge.js caricato');
         if (!res.ok) throw new Error('Errore nel caricamento dati');
         const data = await res.json();
         const arr = data.data || data;
-        console.log('Record ricevuti dal backend:', Array.isArray(arr) ? arr.length : 0, arr);
+        // console.log('Record ricevuti dal backend:', Array.isArray(arr) ? arr.length : 0, arr);
         // Tabulator si aspetta un array di oggetti
         return arr;
     }
@@ -84,19 +86,71 @@ console.log('ordini_servizi_ge.js caricato');
         return true;
     }
 
-    // Utility: esportazione CSV/Excel
+    // Utility: esportazione CSV/Excel tramite backend
     function setupExportButtons(table) {
         const exportDiv = document.getElementById('tabulator-export-btns');
         if (!exportDiv) return;
         exportDiv.innerHTML = '';
+
+        async function handleExport() {
+            const month = document.getElementById('month-filter')?.value || '';
+            const searchVal = document.getElementById('generic-search')?.value || '';
+
+            if (!month) {
+                showError('Seleziona un mese prima di esportare');
+                return;
+            }
+
+            const filters = {};
+            const rtcVal = document.getElementById('rtc-filter')?.value;
+            if (rtcVal) filters['RTC'] = { value: rtcVal, regex: false };
+            if (table && typeof table.getHeaderFilters === 'function') {
+                table.getHeaderFilters().forEach(f => {
+                    if (f.value) filters[f.field] = { value: f.value, regex: false };
+                });
+            }
+
+            const params = new URLSearchParams();
+            params.append('month', month);
+            if (searchVal) params.append('global_search', searchVal);
+            if (Object.keys(filters).length > 0) {
+                params.append('column_filters', JSON.stringify(filters));
+            }
+
+            try {
+                const response = await fetch(`/api/servizi/ge/export?${params.toString()}`);
+                if (!response.ok) throw new Error('Errore durante l\'esportazione');
+
+                const blob = await response.blob();
+                let filename = 'export.xlsx';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.includes('filename=')) {
+                    filename = disposition.split('filename=')[1].replace(/\"/g, '');
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                showError(err.message || 'Errore esportazione');
+            }
+        }
+
         const csvBtn = document.createElement('button');
         csvBtn.className = 'btn btn-outline-primary me-2';
         csvBtn.textContent = 'Esporta CSV';
-        csvBtn.onclick = () => table.download('csv', 'ordini_servizi.csv');
+        csvBtn.onclick = handleExport;
+
         const xlsxBtn = document.createElement('button');
         xlsxBtn.className = 'btn btn-outline-success';
         xlsxBtn.textContent = 'Esporta Excel';
-        xlsxBtn.onclick = () => table.download('xlsx', 'ordini_servizi.xlsx');
+        xlsxBtn.onclick = handleExport;
+
         exportDiv.appendChild(csvBtn);
         exportDiv.appendChild(xlsxBtn);
     }
@@ -107,11 +161,78 @@ console.log('ordini_servizi_ge.js caricato');
         if (!toggle) return;
         toggle.addEventListener('change', function () {
             editModeEnabled = this.checked;
-            table.setOptions({
-                cellEdited: editModeEnabled ? onCellEdit : null
-            });
-        });
+table.getColumns().forEach(col => {
+    const def = col.getDefinition();
+    const canEdit = def.editor !== false && def.editor !== undefined;
+    col.updateDefinition({ editable: editModeEnabled && canEdit });
+});
+
+table.setOptions({
+    cellEdited: editModeEnabled ? onCellEdit : null
+});
+});
+
+// fuori da quel blocco, definisci le nuove funzioni:
+
+function applyVisibleColumnsState(table) {
+    if (!visibleColumnsState.length) {
+        visibleColumnsState = table
+            .getColumns()
+            .map(c => c.getField())
+            .filter(f => f !== 'actions');
+        return;
     }
+    table.getColumns().forEach(col => {
+        const field = col.getField();
+        if (visibleColumnsState.includes(field)) {
+            col.show();
+        } else {
+            col.hide();
+        }
+    });
+}
+
+function setupColumnVisibilityControls(table) {
+    const menu = document.getElementById('column-toggle-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+
+    table.getColumns().forEach(col => {
+        const field = col.getField();
+        if (field === 'actions') return;
+        const li = document.createElement('li');
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input';
+        checkbox.id = `toggle-col-${field}`;
+        checkbox.checked = col.isVisible();
+        checkbox.addEventListener('change', function () {
+            const column = table.getColumn(field);
+            if (!column) return;
+            if (this.checked) {
+                column.show();
+                if (!visibleColumnsState.includes(field)) visibleColumnsState.push(field);
+            } else {
+                column.hide();
+                visibleColumnsState = visibleColumnsState.filter(f => f !== field);
+            }
+        });
+        if (col.isVisible() && !visibleColumnsState.includes(field)) {
+            visibleColumnsState.push(field);
+        }
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = checkbox.id;
+        label.textContent = col.getDefinition().title;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        li.appendChild(div);
+        menu.appendChild(li);
+    });
+}
+
 
     // Callback: cella editata
     async function onCellEdit(cell) {
@@ -127,18 +248,92 @@ console.log('ordini_servizi_ge.js caricato');
         }
     }
 
+    function getParams() {
+        const monthFilter = document.getElementById('month-filter');
+        const rtcFilter = document.getElementById('rtc-filter');
+        const searchInput = document.getElementById('generic-search');
+        return {
+            month_filter: monthFilter ? monthFilter.value : '',
+            rtc_filter: rtcFilter ? rtcFilter.value : '',
+            search: { value: searchInput ? searchInput.value : '' }
+        };
+    }
+
+    async function refreshRTCFilter(params) {
+        const rtcFilter = document.getElementById('rtc-filter');
+        if (!rtcFilter) return;
+        rtcFilter.disabled = true;
+        rtcFilter.innerHTML = '<option value="" selected>Seleziona RTC...</option>';
+        if (!params.month_filter) return;
+        try {
+            const payload = {
+                month_filter: params.month_filter,
+                search: { value: params.search ? params.search.value : '' },
+                columns: []
+            };
+            const response = await fetch('/api/servizi/ge/unique_values', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            let rtcValues = await response.json();
+            rtcValues = Array.from(new Set(rtcValues));
+            rtcValues.forEach(rtc => {
+                const opt = document.createElement('option');
+                opt.value = rtc;
+                opt.textContent = rtc;
+                rtcFilter.appendChild(opt);
+            });
+            if (rtcValues.length > 0) rtcFilter.disabled = false;
+        } catch (error) {
+            console.error('Errore nel caricamento dei valori RTC:', error);
+        }
+    }
+
+    async function loadOrUpdateTable() {
+        const params = getParams();
+        if (!params.month_filter) return; // richiede mese selezionato
+        currentParams = params;
+        if (!tabulatorTable) {
+            await initTabulator(params);
+        } else {
+            await tabulatorTable.setData('/api/servizi/ge/data', params);
+        }
+        refreshRTCFilter(params);
+    }
+
+    function setupEventListeners() {
+        const monthFilter = document.getElementById('month-filter');
+        const rtcFilter = document.getElementById('rtc-filter');
+        const searchInput = document.getElementById('generic-search');
+        if (monthFilter) {
+            monthFilter.addEventListener('change', loadOrUpdateTable);
+        }
+        if (rtcFilter) {
+            rtcFilter.disabled = true;
+            rtcFilter.addEventListener('change', loadOrUpdateTable);
+        }
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter' || this.value === '') {
+                    loadOrUpdateTable();
+                }
+            });
+        }
+    }
+
     // Popola dinamicamente il select dei mesi
     async function populateMonthFilter() {
         const monthFilter = document.getElementById('month-filter');
         if (!monthFilter) {
-            console.log('month-filter non trovato');
+            // console.log('month-filter non trovato');
             return;
         }
         try {
             const res = await fetch('/api/servizi/ge/months');
             if (!res.ok) throw new Error('Errore nel recupero mesi');
             const months = await res.json();
-            console.log('Mesi ricevuti dal backend:', months);
+            // console.log('Mesi ricevuti dal backend:', months);
             monthFilter.innerHTML = '<option value="" selected>Seleziona un mese...</option>';
             months.forEach(m => {
                 const opt = document.createElement('option');
@@ -146,7 +341,10 @@ console.log('ordini_servizi_ge.js caricato');
                 opt.textContent = m;
                 monthFilter.appendChild(opt);
             });
-            console.log('Select mesi popolato con', months.length, 'opzioni');
+            // console.log('Select mesi popolato con', months.length, 'opzioni');
+            if (window.jQuery && jQuery.fn.selectpicker) {
+                jQuery('#month-filter').selectpicker({ dropupAuto: false });
+            }
         } catch (e) {
             showError('Impossibile caricare i mesi: ' + e.message);
             console.error('Errore durante il popolamento dei mesi:', e);
@@ -154,7 +352,7 @@ console.log('ordini_servizi_ge.js caricato');
     }
 
     // Inizializza Tabulator
-    async function initTabulator() {
+    async function initTabulator(params) {
         try {
             columnsConfig = await fetchColumns();
         } catch (e) {
@@ -162,32 +360,12 @@ console.log('ordini_servizi_ge.js caricato');
             return;
         }
 
-        // Spazio per pulsanti azione custom
-        columnsConfig.push({
-            title: 'Azioni',
-            field: 'actions',
-            hozAlign: 'center',
-            headerSort: false,
-            formatter: function () {
-                // Placeholder: aggiungi qui i pulsanti custom
-                return '<button class="btn btn-sm btn-danger">Elimina</button>';
-            },
-            cellClick: function (e, cell) {
-                // Gestisci azione custom (es. elimina)
-                // Esempio: conferma e rimuovi riga
-                if (confirm('Eliminare questa riga?')) {
-                    cell.getRow().delete();
-                }
-            }
-        });
+        // In questa versione il bottone "Elimina" viene omesso.
+        // Se necessario si potrà aggiungere un formatter personalizzato per
+        // gestire altre azioni senza mostrare il pulsante di eliminazione.
 
         // Parametri di ricerca/filtri
-        const monthFilter = document.getElementById('month-filter');
-        const rtcFilter = document.getElementById('rtc-filter');
-        const params = {
-            month_filter: monthFilter ? monthFilter.value : '',
-            rtc_filter: rtcFilter ? rtcFilter.value : ''
-        };
+        if (!params) params = getParams();
 
         tabulatorTable = new Tabulator('#gestione-gs-table', {
             ajaxURL: '/api/servizi/ge/data',
@@ -198,7 +376,8 @@ console.log('ordini_servizi_ge.js caricato');
                 // Adatta la risposta del backend (DataTables) al formato Tabulator
                 return response.data || [];
             },
-            layout: 'fitColumns',
+
+            layout: 'fitDataTable',
             responsiveLayout: false,
             columns: columnsConfig,
             columnDefaults: { headerFilter: false },
@@ -223,8 +402,14 @@ console.log('ordini_servizi_ge.js caricato');
             rowClick: function (e, row) {
                 row.toggleSelect();
             },
-            rowSelected: function (row) {},
-            rowDeselected: function (row) {},
+            rowSelected: function (row) {
+                const el = row.getElement();
+                if (el) el.classList.add('table-row-selected');
+            },
+            rowDeselected: function (row) {
+                const el = row.getElement();
+                if (el) el.classList.remove('table-row-selected');
+            },
             tableBuilt: function() {
                 // Forza la rimozione dei filtri header
                 this.getColumns().forEach(col => {
@@ -240,20 +425,26 @@ console.log('ordini_servizi_ge.js caricato');
                 col.updateDefinition({ headerFilter: false });
             });
             tabulatorTable.redraw(true);
-            // Log di debug per vedere la definizione delle colonne
-            console.log('DEBUG: Colonne Tabulator dopo patch headerFilter:', tabulatorTable.getColumnDefinitions());
+            // console.log('DEBUG: Colonne Tabulator dopo patch headerFilter:', tabulatorTable.getColumnDefinitions());
         }, 100);
+
+        tabulatorTable.on('dataLoaded', function () {
+            refreshRTCFilter(currentParams);
+        });
 
         // Setup esportazione
         setupExportButtons(tabulatorTable);
         // Setup toggle edit mode
         setupEditToggle(tabulatorTable);
+        // Applica visibilità colonne e controlli
+        applyVisibleColumnsState(tabulatorTable);
+        setupColumnVisibilityControls(tabulatorTable);
     }
 
     // Inizializza solo se presente la tabella
     function avviaGestioneGS() {
         const tabellaPresente = !!document.getElementById('gestione-gs-table');
-        console.log('Inizializzazione Gestione GS, tabella presente:', tabellaPresente);
+        // console.log('Inizializzazione Gestione GS, tabella presente:', tabellaPresente);
         if (tabellaPresente) {
             let exportDiv = document.getElementById('tabulator-export-btns');
             if (!exportDiv) {
@@ -262,13 +453,12 @@ console.log('ordini_servizi_ge.js caricato');
                 exportDiv.className = 'mb-2';
                 document.getElementById('gestione-gs-table').parentNode.insertBefore(exportDiv, document.getElementById('gestione-gs-table'));
             }
-            console.log('Chiamo populateMonthFilter()');
+            // console.log('Chiamo populateMonthFilter()');
             populateMonthFilter().then(() => {
-                console.log('populateMonthFilter() completata, ora chiamo initTabulator()');
-                initTabulator();
+                setupEventListeners();
             });
         } else {
-            console.log('Tabella gestione-gs-table NON trovata, script non inizializzato');
+            // console.log('Tabella gestione-gs-table NON trovata, script non inizializzato');
         }
     }
 
