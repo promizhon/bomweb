@@ -2,9 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from ordini_materiale_articoli import router, get_db
 from fastapi import FastAPI, Depends
+from ordini_servizi import router as servizi_router
 
 app = FastAPI()
 app.include_router(router)
+app.include_router(servizi_router)
 
 class DummyQuery:
     def __init__(self):
@@ -62,4 +64,14 @@ def test_api_materiali_search():
     assert response.status_code == 200
     data = response.json()
     assert "data" in data
-    assert isinstance(data["data"], list) 
+    assert isinstance(data["data"], list)
+
+
+def test_get_servizi_months():
+    client = TestClient(app)
+    response = client.get("/api/servizi/ge/months")
+    assert response.status_code == 200
+    months = response.json()
+    assert isinstance(months, list)
+    assert len(months) == 13
+    assert "TUTTO" in months
