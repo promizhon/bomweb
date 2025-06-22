@@ -34,7 +34,7 @@ def _perform_search_query(
     """Esegue la query di ricerca con i filtri forniti."""
     query = db.query(Zucchetti_Articoli)
     if year and year.lower() != 'all':
-        query = query.filter(Zucchetti_Articoli.DataAcquisto.startswith(str(year)))
+        query = query.filter(extract('year', Zucchetti_Articoli.DataAcquisto) == int(year))
     if codice:
         query = query.filter(Zucchetti_Articoli.KACODRIC.ilike(f"%{codice}%"))
     if codicenet:

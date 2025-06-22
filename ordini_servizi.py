@@ -1,19 +1,16 @@
 import json
-import logging
+import traceback
 from fastapi import APIRouter, Depends, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect
-from models.carrefour_log import CarrefourLog
 from database_config import get_db
 from urllib.parse import unquote
 import pandas as pd
 import io
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -67,8 +64,8 @@ class FilterManager:
                     query_params[param_name] = f'%{val.upper()}%'
 
         where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-        logger.debug("Generated WHERE clause: %s", where_sql)
-        logger.debug("Query parameters: %s", query_params)
+        print(f"Generated WHERE clause: {where_sql}")
+        print(f"Query parameters: {query_params}")
         return where_sql, query_params
 
 class QueryBuilder:
@@ -122,9 +119,8 @@ class DataManager:
     def get_filtered_data(self, params: Dict[str, Any]) -> Dict[str, Any]:
         try:
             draw = params.get('draw', 1)
-            # Forza nessun limite: restituisci tutti i record
-            length = -1
-            start = 0
+            start = params.get('start', 0)
+            length = params.get('length', 10)
             search_value = params.get('search', {}).get('value')
             order_column_index = params.get('order', [{}])[0].get('column', 0)
             order_dir = params.get('order', [{}])[0].get('dir', 'asc')
@@ -156,7 +152,10 @@ class DataManager:
             data_query = self.query_builder.build_data_query(
                 where_sql, order_column_name, order_dir, length, start
             )
-            final_params = query_params
+            if length == -1:
+                final_params = query_params
+            else:
+                final_params = {**query_params, 'limit': length, 'offset': start}
             result = self.db.execute(data_query, final_params).fetchall()
             data = [dict(row._mapping) for row in result]
 
@@ -167,7 +166,8 @@ class DataManager:
                 "data": data,
             }
         except Exception as e:
-            logger.exception("Error in get_filtered_data")
+            print("!!! ERROR IN get_filtered_data !!!")
+            traceback.print_exc()
             return {
                 "draw": params.get('draw', 1),
                 "recordsTotal": 0,
@@ -187,7 +187,7 @@ class DataManager:
                         if col in self.filter_manager.column_names and val
                     }
                 except json.JSONDecodeError:
-                    logger.error("Errore nel decodificare i filtri per colonna JSON.")
+                    print("Errore nel decodificare i filtri per colonna JSON.")
 
             where_sql, query_params = self.filter_manager.build_where_clause(
                 month_filter=month,
@@ -199,7 +199,8 @@ class DataManager:
             result = self.db.execute(query, query_params).fetchall()
             return [dict(row._mapping) for row in result]
         except Exception as e:
-            logger.exception("Error in get_export_data")
+            print("!!! ERROR IN get_export_data !!!")
+            traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/ordini_servizi", include_in_schema=False)
@@ -208,19 +209,7 @@ async def ordini_servizi_page(request: Request):
 
 @router.get("/ordini_servizi/ge", include_in_schema=False)
 async def get_gestione_gs_tab(request: Request):
-    """Render the Gestione GS tab.
-
-    When called via AJAX the route returns only the tab content so it can be
-    injected into an existing page. If accessed directly it returns a complete
-    page extending ``base.html``.
-    """
-
-    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
-    template = "ordini_servizi_ge_partial.html" if is_ajax else "ordini_servizi_ge.html"
-    context = {"request": request}
-    if not is_ajax:
-        context["username"] = request.cookies.get("session")
-    return templates.TemplateResponse(template, context)
+    return templates.TemplateResponse("ordini_servizi_ge.html", {"request": request})
 
 @router.get("/api/servizi/ge/columns")
 async def get_gestione_gs_columns(db: Session = Depends(get_db)):
@@ -252,31 +241,26 @@ async def get_gestione_gs_data(request: Request, db: Session = Depends(get_db)):
 async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db)):
     try:
         data = await request.json()
-        logger.debug("DEBUG UPDATE - Dati ricevuti: %s", data)
+        print(f"DEBUG UPDATE - Dati ricevuti: {data}")  # Debug print
         
         query_params = {}
         pk = data.get('pk')
         field = data.get('field')
         value = data.get('value')
 
-        logger.debug("DEBUG UPDATE - pk: %s, field: %s, value: %s", pk, field, value)
+        print(f"DEBUG UPDATE - pk: {pk}, field: {field}, value: {value}")  # Debug print
 
         if not all([pk, field, value is not None]):
-            logger.debug("DEBUG UPDATE - Parametri mancanti")
+            print("DEBUG UPDATE - Parametri mancanti")
             return JSONResponse({"status": "error", "message": "Parametri mancanti"}, status_code=400)
 
         filter_manager = FilterManager(db, TABLE_NAME)
         columns = filter_manager.column_names
-        logger.debug("DEBUG UPDATE - Colonne valide: %s", columns)
+        print(f"DEBUG UPDATE - Colonne valide: {columns}")  # Debug print
         
         if field not in columns:
-            logger.debug("DEBUG UPDATE - Campo non valido: %s", field)
+            print(f"DEBUG UPDATE - Campo non valido: {field}")
             return JSONResponse({"status": "error", "message": "Campo non valido"}, status_code=400)
-
-        # Recupera il valore precedente per il log
-        old_value_query = text(f"SELECT `{field}` FROM `{TABLE_NAME}` WHERE ID = :pk")
-        old_value_result = db.execute(old_value_query, {'pk': pk}).fetchone()
-        old_value = old_value_result[0] if old_value_result else None
 
         update_query = text(f"""
             UPDATE `{TABLE_NAME}`
@@ -289,24 +273,11 @@ async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db
             'pk': pk
         }
         
-        logger.debug("DEBUG UPDATE - Query: %s", update_query)
-        logger.debug("DEBUG UPDATE - Parametri: %s", query_params)
+        print(f"DEBUG UPDATE - Query: {update_query}")
+        print(f"DEBUG UPDATE - Parametri: {query_params}")
         
         result = db.execute(update_query, query_params)
         db.commit()
-
-        # Inserisci voce di log solo se l'update ha avuto effetto
-        if result.rowcount:
-            log_entry = CarrefourLog(
-                utente=request.cookies.get("session", ""),
-                campo_old=str(old_value) if old_value is not None else None,
-                campo_new=str(value),
-                data=datetime.utcnow(),
-                id_tabella=pk,
-                colonna=field
-            )
-            db.add(log_entry)
-            db.commit()
         
         if result.rowcount == 0:
             return JSONResponse({"status": "error", "message": "Record non trovato"}, status_code=404)
@@ -314,7 +285,8 @@ async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db
         return JSONResponse({"status": "success", "message": "Record aggiornato"})
         
     except Exception as e:
-        logger.exception("Error in update_gestione_gs_data")
+        print("!!! ERROR IN update_gestione_gs_data !!!")
+        traceback.print_exc()
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 @router.get("/api/servizi/ge/export")
@@ -427,17 +399,18 @@ async def get_unique_column_values(column: str, month: str = '', filters: str = 
 
 @router.post("/api/servizi/ge/unique_values")
 async def post_unique_column_values(request: Request, db: Session = Depends(get_db)):
+    import traceback
     try:
         params = await request.json()
-        logger.debug("[DEBUG] Parametri ricevuti per unique_values: %s", params)
+        print("[DEBUG] Parametri ricevuti per unique_values:", params)
         # Se params è una stringa, prova a fare il parsing
         if isinstance(params, str):
             import json
             try:
                 params = json.loads(params)
-                logger.debug("[DEBUG] Params dopo json.loads: %s", params)
+                print("[DEBUG] Params dopo json.loads:", params)
             except Exception as e:
-                logger.debug("[DEBUG] Errore nel parsing JSON: %s", e)
+                print("[DEBUG] Errore nel parsing JSON:", e)
                 raise HTTPException(status_code=400, detail="Payload non valido per unique_values")
         data_manager = DataManager(db, TABLE_NAME)
         filter_manager = data_manager.filter_manager
@@ -447,26 +420,26 @@ async def post_unique_column_values(request: Request, db: Session = Depends(get_
         month_filter = params.get('month_filter', '').strip()
         search_value = params.get('search', {}).get('value')
         column_names = filter_manager.column_names
-        logger.debug("[DEBUG] Colonne disponibili: %s", column_names)
+        print("[DEBUG] Colonne disponibili:", column_names)
         column_searches = {
             column_names[i]: params['columns'][i]['search']
             for i in range(len(column_names))
             if params.get('columns') and params['columns'][i].get('search', {}).get('value')
         }
-        logger.debug("[DEBUG] column_searches: %s", column_searches)
-        logger.debug("[DEBUG] search_value: %s", search_value)
-        logger.debug("[DEBUG] month_filter: %s", month_filter)
+        print("[DEBUG] column_searches:", column_searches)
+        print("[DEBUG] search_value:", search_value)
+        print("[DEBUG] month_filter:", month_filter)
 
         where_sql, query_params = filter_manager.build_where_clause(
             month_filter=month_filter,
             search_value=search_value,
             column_searches=column_searches
         )
-        logger.debug("[DEBUG] where_sql: %s", where_sql)
-        logger.debug("[DEBUG] query_params: %s", query_params)
+        print("[DEBUG] where_sql:", where_sql)
+        print("[DEBUG] query_params:", query_params)
 
         query = query_builder.build_unique_values_query('RTC', where_sql)
-        logger.debug("[DEBUG] Query finale: %s", query)
+        print("[DEBUG] Query finale:", query)
         result = db.execute(query, query_params).fetchall()
         values = []
         seen = set()
@@ -479,8 +452,9 @@ async def post_unique_column_values(request: Request, db: Session = Depends(get_
                         seen.add(value)
                 except Exception:
                     continue
-        logger.debug("[DEBUG] Valori RTC unici trovati: %s", values)
+        print("[DEBUG] Valori RTC unici trovati:", values)
         return JSONResponse(values)
     except Exception as e:
-        logger.exception("Error in post_unique_column_values")
+        print("!!! ERROR IN post_unique_column_values !!!")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Errore nel recupero dei valori unici: {str(e)}")

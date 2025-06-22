@@ -2,8 +2,8 @@
 
 /* Stile globale per il corpo del testo */
 body {
-    font-family: 'Inter', 'Segoe UI', 'Roboto', 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 1rem; /* dimensione leggibile per il testo generico */
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.875rem; /* 14px */
     padding-top: 70px; /* Altezza della navbar */
 }
 :root {
@@ -394,7 +394,7 @@ table.dataTable th {
 
 /* ===================== BASE BODY ===================== */
 body {
-    font-family: 'Inter', 'Segoe UI', 'Roboto', 'Plus Jakarta Sans', Arial, sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: var(--background);
     color: var(--text);
     margin: 0;
@@ -717,7 +717,7 @@ body,
 /* Ridimensionamento Tabella Articoli */
 #ordiniTable th, 
 #ordiniTable td {
-    font-size: 0.625rem !important;
+    font-size: 0.8rem;
     padding: 0.5rem;
 }
 
@@ -1112,94 +1112,4 @@ body.sidebar-collapsed .sidebar:hover ~ .main-content {
 
 #search-filters.row {
     gap: 0.5rem;
-}
-
-/* ===================== TABULATOR - STILE IDENTICO A TABELLA ARTICOLI ===================== */
-.tabulator-table {
-    border: 2px solid var(--accent-yellow, #BDD70F) !important;
-    border-radius: 10px !important;
-    overflow: hidden;
-    background: var(--table-bg, #fff);
-    color: var(--text, #222);
-    box-shadow: none;
-    font-size: 1em;
-}
-.tabulator-header {
-    height: 36px !important;
-    min-height: 36px !important;
-    max-height: 36px !important;
-    padding: 0 !important;
-    background: var(--surface, #fff);
-    color: var(--text, #222);
-    font-weight: 600;
-    border-bottom: none;
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    box-shadow: none;
-    letter-spacing: 0.01em;
-    text-transform: none;
-}
-.tabulator-header .tabulator-col {
-    height: 36px !important;
-    min-height: 36px !important;
-    max-height: 36px !important;
-    padding: 0 0.75rem !important;
-    font-size: 1em;
-    border-right: none !important;
-    background: transparent;
-    color: inherit;
-    text-shadow: none;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-}
-.tabulator-header .tabulator-col:last-child {
-    border-right: none !important;
-}
-.tabulator-row {
-    border-bottom: 1px solid var(--table-border, #e2e8f0);
-    background: #fff;
-    transition: background 0.2s;
-}
-.tabulator-row:nth-child(even) {
-    background: #f8fafc;
-}
-.tabulator-row:hover {
-    background: #f1f5f9;
-}
-.tabulator-cell {
-    padding: 0 0.75rem !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    max-height: 36px !important;
-    border-right: none !important;
-    vertical-align: middle;
-    font-size: 1em;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-}
-.tabulator-cell:last-child {
-    border-right: none !important;
-}
-
-/* Allineamento perfetto header/celle Tabulator - solo padding, nessuna height forzata */
-.tabulator-header .tabulator-col,
-.tabulator-cell {
-    padding: 0 0.75rem !important;
-    border: none !important;
-    box-sizing: border-box !important;
-    font-size: 1em;
-    display: flex;
-    align-items: center;
-}
-
-/* Fix contenitore Tabulator per allineamento perfetto e nessun overflow */
-#gestione-gs-table {
-  width: 100% !important;
-  min-width: 0 !important;
-  overflow-x: auto !important;
-  box-sizing: border-box !important;
-  padding: 0 !important;
-  margin: 0 !important;
 }
