@@ -132,11 +132,11 @@ function saveColumnVisibility() {
 
 function updateEditModeState(enabled) {
     editModeEnabled = enabled;
-    const table = $('#gestione-gs-table');
+    const tableEl = $('#gestione-gs-table'); // Renamed to avoid conflict with global 'table'
     if (enabled) {
-        table.addClass('edit-mode-active');
+        tableEl.addClass('edit-mode-active');
     } else {
-        table.removeClass('edit-mode-active');
+        tableEl.removeClass('edit-mode-active');
     }
 }
 
@@ -284,14 +284,40 @@ async function initializeDataTable() {
             return {
                 data: field,
                 title: title,
-                className: field === 'id' ? 'editable' : '',
+                className: field === 'id' ? 'editable' : '', // Assuming 'id' field should not be editable, adjust if needed. Original was first-child
                 visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true)
             };
         });
 
         const headerRow = `<tr>${columnsConfig.map(c => `<th>${c.title}</th>`).join('')}</tr>`;
+        $('#gestione-gs-table thead').html(headerRow); // Make sure <thead> exists or is created
+        $('#gestione-gs-table tfoot').html(''); // Make sure <tfoot> exists or is created
+
+        // Ensure the table element itself exists if it's being replaced or if DataTable is called on a selector that might be empty
+        if ($('#gestione-gs-table').length === 0) {
+             console.error("Elemento #gestione-gs-table non trovato prima dell'inizializzazione di DataTable.");
+             // Potresti voler creare la tabella qui se non esiste, o assicurarti che il partial HTML la includa.
+             // Per ora, assumiamo che il partial la crei correttamente.
+        } else {
+             // Se la tabella esiste ma è già un DataTable, distruggila prima.
+             if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
+                 console.log('Distruzione DataTable esistente prima della reinizializzazione.');
+                 $('#gestione-gs-table').DataTable().destroy();
+                 // Svuota thead e tbody per essere sicuro, dato che DataTable().destroy() non sempre lo fa completamente con serverSide.
+                 $('#gestione-gs-table thead').empty();
+                 $('#gestione-gs-table tbody').empty(); // Se presente, altrimenti DataTables lo crea.
+             }
+        }
+        // Re-add thead/tfoot in case they were destroyed and not recreated by the partial
+        if ($('#gestione-gs-table thead').length === 0) {
+            $('#gestione-gs-table').append('<thead></thead>');
+        }
+        if ($('#gestione-gs-table tfoot').length === 0) {
+            $('#gestione-gs-table').append('<tfoot></tfoot>');
+        }
         $('#gestione-gs-table thead').html(headerRow);
-        $('#gestione-gs-table tfoot').html('');
+        $('#gestione-gs-table tfoot').html(''); // Footer is often empty unless used for column filters
+
 
         table = $('#gestione-gs-table').DataTable({
             processing: true,
@@ -345,14 +371,25 @@ async function initializeDataTable() {
                 console.log('DataTable redrawn.');
             },
             createdRow: function (row, data) {
-                $(row).find('td:not(:first-child)').addClass('editable');
+                // Make all cells except the one for 'ID' editable if 'ID' is the first column.
+                // This is just an example, adjust based on actual non-editable columns.
+                // The original logic was 'td:not(:first-child)'
+                $(row).find('td').each(function(index) {
+                    const columnData = table.column($(this).index(), ':visible').dataSrc();
+                    if (columnData !== 'ID') { // Example: Make cells not in 'ID' column editable
+                        $(this).addClass('editable');
+                    }
+                });
+
                 if (!editModeEnabled) {
                     $(row).find('td.editable').css('cursor', 'not-allowed');
+                } else {
+                    $(row).find('td.editable').css('cursor', 'pointer'); // Ensure pointer cursor in edit mode
                 }
             },
             initComplete: function () {
                 const api = this.api();
-                table = api;
+                table = api; // Assign table instance to global variable
 
                 if (visibleColumnsState.length > 0) {
                     api.columns().every(function (idx) {
@@ -610,7 +647,7 @@ async function initializeDataTable() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        pk: rowData.ID,
+                        pk: rowData.ID, // Assuming 'ID' is the primary key field from your data
                         field: columnName,
                         value: newValue
                     })
@@ -622,7 +659,7 @@ async function initializeDataTable() {
                     .then(result => {
                         if (result.status === 'success') {
                             $(cell.node()).empty();
-                            cell.data(newValue).draw();
+                            cell.data(newValue).draw(false); // draw(false) to redraw current page
                         } else {
                             throw new Error(result.message || 'Errore durante l\'aggiornamento');
                         }
@@ -630,7 +667,7 @@ async function initializeDataTable() {
                     .catch(error => {
                         console.error('Errore:', error);
                         $(cell.node()).empty();
-                        cell.data(data).draw();
+                        cell.data(data).draw(false); // Revert and redraw
                         if (error.message !== 'Errore nella risposta del server') {
                             alert(error.message);
                         }
@@ -649,19 +686,24 @@ async function initializeGestioneGSControls() {
     console.log('Inizializzazione controlli GS...');
     const monthFilter = document.getElementById('month-filter');
     if (!monthFilter) {
-        console.log('Month filter non trovato');
+        console.log('Month filter non trovato, impossibile inizializzare i controlli GS.');
         return;
     }
 
     // Inizializza il toggle di modifica
     initializeToggle();
 
-    if (monthFilter.options.length <= 1) {
+    if (monthFilter.options.length <= 1) { // Only populate if not already populated
         try {
             const response = await fetch('/api/servizi/ge/months');
+            if (!response.ok) throw new Error('Errore nel fetch dei mesi');
             const months = await response.json();
-            if (monthFilter.options.length <= 1) {
-                months.forEach(m => monthFilter.add(new Option(m, m)));
+            // Clear existing options except the first placeholder before adding new ones
+            // $(monthFilter).find('option:not(:first-child)').remove();
+            // This line might be too aggressive if months are ever pre-populated by server.
+            // Assuming it's safe if options.length <=1 check is reliable.
+            if (monthFilter.options.length <= 1) { // Double check, in case of async operations
+                 months.forEach(m => monthFilter.add(new Option(m, m)));
             }
         } catch (error) {
             console.error('Errore nel caricamento dei mesi:', error);
@@ -673,14 +715,15 @@ async function initializeGestioneGSControls() {
         console.log('Month filter changed. Selected month:', selectedMonth);
 
         $('#gestione-gs-table').hide();
-        $('#loading-indicator').show();
+        // $('#loading-indicator').show(); // Make sure #loading-indicator exists in the partial
 
         if (!selectedMonth) {
             console.log('No month selected. Clearing table if exists.');
             if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
                 table.clear().draw();
+                 $('#gestione-gs-table tbody').empty(); // Explicitly empty tbody
             }
-            $('#loading-indicator').hide();
+            // $('#loading-indicator').hide();
             $('#gestione-gs-table').show();
             return;
         }
@@ -688,12 +731,12 @@ async function initializeGestioneGSControls() {
         if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
             console.log('DataTable already initialized. Reloading data.');
             table.ajax.reload(function () {
-                $('#loading-indicator').hide();
+                // $('#loading-indicator').hide();
                 $('#gestione-gs-table').show();
             });
         } else {
             console.log('DataTable not initialized. Initializing table.');
-            initializeDataTable();
+            initializeDataTable(); // This will also show the table via its own logic
         }
         aggiornaFiltroRTC();
     });
@@ -723,10 +766,14 @@ async function initializeGestioneGSControls() {
         }
     });
 
-    // Inizializza la tabella se non è già inizializzata
-    if (!$.fn.DataTable.isDataTable('#gestione-gs-table')) {
-        await initializeDataTable();
-    }
+    // Inizializza la tabella se non è già inizializzata e un mese è selezionato
+    // Questo potrebbe essere ridondante se il change event del month-filter gestisce l'init.
+    // Ma utile se la pagina può caricare con un mese già selezionato (es. da stato salvato).
+    // if (!$.fn.DataTable.isDataTable('#gestione-gs-table') && $('#month-filter').val()) {
+    //    await initializeDataTable();
+    // }
+    // The initial load of the tab content and then this function might mean month-filter isn't populated yet.
+    // The month-filter change event is likely the primary trigger for table load.
 
     // Collega il pulsante esporta excel
     $('#exportBtn').off('click').on('click', handleExport);
@@ -737,25 +784,32 @@ function patchRicercaSoloInvio() {
     // Trova il campo ricerca DataTables
     var $input = $('#dt-filter-container input[type="search"]');
     if ($input.length) {
-        $input.off('input keyup');
+        $input.off('input keyup'); // Rimuove listener precedenti
         $input.on('keyup', function (e) {
             if (e.key === 'Enter') {
-                var table = $('#gestione-gs-table').DataTable();
-                table.search(this.value).draw();
+                var currentTable = $('#gestione-gs-table').DataTable(); // Usa currentTable per evitare conflitti di scope
+                currentTable.search(this.value).draw();
             }
         });
     }
 }
 
 // Applica la patch dopo ogni init della tabella
-$(document).on('init.dt', function () {
-    patchRicercaSoloInvio();
+$(document).on('init.dt', function (event, settings) {
+    // Assicurati che la patch sia applicata solo alla tabella corretta, se ci sono più tabelle sulla pagina
+    if (settings.nTable.id === 'gestione-gs-table') {
+        patchRicercaSoloInvio();
+    }
 });
 
 // Nascondi tutte le info, mostra solo quella DOPO la tabella (sotto)
-$(document).on('draw.dt', function () {
-    $('.dataTables_info').hide();
-    $('#gestione-gs-table').parent().nextAll('.dataTables_info').first().show();
+$(document).on('draw.dt', function (event, settings) {
+     if (settings.nTable.id === 'gestione-gs-table') {
+        $('.dataTables_info').hide(); // Questo potrebbe nascondere info di altre tabelle se non qualificato
+        // More specific selector:
+        $(settings.nTableWrapper).find('.dataTables_info').hide();
+        $(settings.nTableWrapper).find('.dataTables_info:last-of-type').show(); // Mostra solo l'ultima info nel wrapper della tabella corrente
+     }
 });
 
 // Listener globale per ESC: resetta tutti i filtri tranne il mese
@@ -765,18 +819,36 @@ document.addEventListener('keydown', function (e) {
         const rtcFilter = document.getElementById('rtc-filter');
         if (rtcFilter) {
             rtcFilter.value = '';
-            rtcFilter.dispatchEvent(new Event('change'));
+            // rtcFilter.dispatchEvent(new Event('change')); // Potrebbe causare reload non necessario se la tabella è già vuota
+            if ($.fn.DataTable.isDataTable('#gestione-gs-table') && table.page.info().recordsTotal > 0) {
+                 $('#gestione-gs-table').DataTable().ajax.reload(); // Ricarica solo se ci sono dati
+            }
         }
         // Reset ricerca generica
         const searchInput = document.getElementById('generic-search');
-        if (searchInput) {
+        if (searchInput && searchInput.value) { // Controlla se c'è un valore prima di resettare
             searchInput.value = '';
+             if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
+                table.search('').draw(); // Applica la ricerca vuota
+            }
         }
-        // Reset filtri DataTables (se presenti)
+        // Reset filtri avanzati DataTables (se presenti e attivi)
         if (window.$ && $.fn.DataTable && table) {
-            table.search('').columns().search('').draw();
+            let filtersActive = false;
+            table.columns().every(function() {
+                if (this.search()) {
+                    filtersActive = true;
+                }
+            });
+            if (filtersActive) {
+                 table.columns().search('').draw();
+            }
         }
-        // Reset filtri avanzati custom (se presenti)
-        document.querySelectorAll('.column-filter').forEach(input => input.value = '');
+        // Reset filtri avanzati custom (se presenti nel pannello)
+        const advancedFiltersPanelActive = $('#advanced-filters-panel').hasClass('show');
+        if (advancedFiltersPanelActive) {
+            document.querySelectorAll('#advanced-filters-panel .column-filter').forEach(input => input.value = '');
+            // Potrebbe essere necessario chiudere il pannello o notificare all'utente
+        }
     }
 });

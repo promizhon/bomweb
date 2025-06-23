@@ -93,5 +93,6 @@
 {% endblock %}
 {% block script_extra %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/6.3.1/js/tabulator.min.js"></script>
-<script src="{{ url_for('static', path='js/ordini_servizi_ge.js') }}"></script>
+{# The script ordini_servizi_ge.js is now loaded by the main ordini_servizi.html template #}
+{# <script src="{{ url_for('static', path='js/ordini_servizi_ge.js') }}"></script> #}
 {% endblock %}
