@@ -543,3 +543,18 @@ body.sidebar-collapsed .main-content {
 .dataTables_wrapper .dataTables_info:last-of-type {
     display: block !important;
 }
+
+/* Styles for content hiding in table cells */
+#gestione-gs-table tbody td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative; /* For potential future use with custom tooltips */
+}
+
+/* Ensure editing input is not affected by ellipsis */
+#gestione-gs-table tbody td input {
+    white-space: normal; /* Or revert to default, depending on input type */
+    overflow: visible;
+    text-overflow: clip; /* Or revert to default */
+}

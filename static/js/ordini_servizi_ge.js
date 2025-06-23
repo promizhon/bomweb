@@ -550,10 +550,22 @@ async function initializeDataTable() {
         $('#gestione-gs-table').off('click', 'td.editable').on('click', 'td.editable', function () {
             if (!editModeEnabled) {
                 const cell = table.cell(this);
-                const originalBg = cell.node().style.backgroundColor;
-                cell.node().style.backgroundColor = '#ffebee';
-                setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
-                return;
+                const cellData = cell.data();
+                const cellNode = $(cell.node());
+
+                // Check if content is actually truncated
+                // scrollWidth > clientWidth is a common way to check for overflow
+                if (cellNode[0].scrollWidth > cellNode[0].clientWidth) {
+                    // Display full content using a simple alert
+                    alert("Contenuto completo:\n\n" + cellData);
+                } else {
+                    // If not truncated, provide the visual feedback as before (optional)
+                    // This part can be removed if only truncated cells should react
+                    const originalBg = cell.node().style.backgroundColor;
+                    cell.node().style.backgroundColor = '#ffebee'; // Light red feedback
+                    setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
+                }
+                return; // Exit after handling click for non-edit mode
             }
 
             const cell = table.cell(this);
