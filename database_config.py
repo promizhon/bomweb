@@ -1,22 +1,34 @@
 import os
-import socket
 from dotenv import load_dotenv
 
-# Controlla se il file .env esiste
-env_file = ".env"
-if os.path.exists(env_file):
-    load_dotenv()  # Carica le variabili da .env
-    print("DEBUG - File .env trovato, variabili caricate.")
-    APP_MODE = os.getenv("APP_MODE", "LOCAL")  # Se non definito, assume LOCAL
-else:
-    print("DEBUG - File .env NON trovato, forzando modalità REMOTE.")
-    APP_MODE = "REMOTE"
+# Carica SEMPRE il file .env
+load_dotenv()
 
-# Configura il database in base all'ambiente
-if APP_MODE == "LOCAL":
-    SQLALCHEMY_DATABASE_URL = "mysql+pymysql://TestLocale:priviet78aA+-+@localhost:3306/gestprev"
-else:
-    SQLALCHEMY_DATABASE_URL = "mysql+pymysql://TestRemoto:priviet78aA+-+@192.168.1.99:3306/gestprev"
+import os
+
+# Leggi e normalizza la modalità applicativa
+APP_MODE = os.getenv("APP_MODE", "LOCAL").strip().upper()
+
+# Mappa modalità → variabile d'ambiente corrispondente
+db_url_env_map = {
+    "LOCAL": "SQLALCHEMY_DATABASE_URL_LOCAL",
+    "REMOTO": "SQLALCHEMY_DATABASE_URL_REMOTO",
+    "CASA": "SQLALCHEMY_DATABASE_URL_CASA",
+    "META": "SQLALCHEMY_DATABASE_URL_META",
+}
+
+# Recupera la variabile d'ambiente corretta
+env_var_name = db_url_env_map.get(APP_MODE)
+
+if not env_var_name:
+    raise RuntimeError(f"APP_MODE non valido: {APP_MODE}")
+
+SQLALCHEMY_DATABASE_URL = os.getenv(env_var_name)
+
+if not SQLALCHEMY_DATABASE_URL:
+    raise RuntimeError(f"La variabile {env_var_name} non è definita nel file .env!")
+
+
 
 # Setup SQLAlchemy
 from sqlalchemy import create_engine

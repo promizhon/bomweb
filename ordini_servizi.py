@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect # Mantenuto per potenziale uso futuro o altre route
-from database_config import get_db
+from database_config import get_db, APP_MODE
 from urllib.parse import unquote # Mantenuto per potenziale uso futuro
 import pandas as pd # Mantenuto per potenziale uso futuro
 import io # Mantenuto per potenziale uso futuro
@@ -25,9 +25,15 @@ async def ordini_servizi_page(request: Request):
     Pagina principale per gli ordini di servizi.
     Questa route è stata mantenuta da ordini_servizi.py originale.
     """
-    # Assumendo che l'username per il template venga ancora da qui
-    username = request.cookies.get("session")
-    return templates.TemplateResponse("ordini_servizi.html", {"request": request, "username": username})
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
+    return templates.TemplateResponse("ordini_servizi.html", {"request": request, "username": username, "app_mode": APP_MODE})
 
 # Se ci fossero altre route o logiche non relative a "gestione gs" (GE)
 # originariamente in ordini_servizi.py, andrebbero mantenute qui.

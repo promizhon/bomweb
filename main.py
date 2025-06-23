@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime, timedelta, date
+import json
 
 from database_config import init_db, APP_MODE, get_db
 from ordini_materiale_articoli import router as materiali_router
@@ -50,10 +51,16 @@ app.include_router(servizi_ge_router)
 
 @app.get("/")
 async def index(request: Request, db: Session = Depends(get_db)):
-    username = request.cookies.get("session")
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
     if not username:
         return RedirectResponse(url="/login")
-
     tre_minuti_fa = datetime.now() - timedelta(minutes=3)
     query = text("""
         SELECT login FROM utente_utenti 
@@ -62,12 +69,12 @@ async def index(request: Request, db: Session = Depends(get_db)):
         ORDER BY login
     """)
     utenti = db.execute(query, {"limite": tre_minuti_fa}).mappings().all()
-
     return templates.TemplateResponse("main.html", {
         "request": request,
         "is_local": APP_MODE == "LOCAL",
         "utenti_connessi": utenti,
-        "username": username  # 👈 passa il nome utente loggato
+        "username": username,
+        "app_mode": APP_MODE  # Passa la modalità al template
     })
 
 

@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from database_config import get_db
+from database_config import get_db, APP_MODE
 from models.zucchetti import Zucchetti_Articoli
 from typing import Optional, List
 from fastapi.templating import Jinja2Templates
+import json
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -217,63 +218,75 @@ async def export_data(
 
 @router.get("/materiali")
 async def pagina_materiali(request: Request):
-    if not request.cookies.get("session"):
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
+    if not username:
         from fastapi.responses import RedirectResponse
         return RedirectResponse("/login")
-    return templates.TemplateResponse("ordini_materiale_articoli.html", {
-        "request": request,
-        "is_local": True
-    })
+    return templates.TemplateResponse("materiali.html", {"request": request, "username": username, "app_mode": APP_MODE})
 
 @router.get("/ordini_materiale")
 async def ordini_materiale(request: Request, db: Session = Depends(get_db)):
-    username = request.cookies.get("session")
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
     if not username:
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/login")
-
-    return templates.TemplateResponse("ordini_materiale.html", {
-        "request": request,
-        "username": username
-    })
+        return RedirectResponse("/login")
+    return templates.TemplateResponse("ordini_materiale.html", {"request": request, "username": username, "app_mode": APP_MODE})
 
 @router.get("/ordini_materiale/articoli")
 async def materiali_articoli(request: Request, db: Session = Depends(get_db)):
-    username = request.cookies.get("session")
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
     if not username:
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/login")
-
-    # Per ora usiamo un range di anni predefinito
-    current_year = datetime.now().year
-    anni = list(range(current_year, current_year - 5, -1))
-
-    return templates.TemplateResponse("ordini_materiale_articoli.html", {
-        "request": request,
-        "username": username,
-        "anni": anni
-    })
+        return RedirectResponse("/login")
+    return templates.TemplateResponse("ordini_materiale_articoli.html", {"request": request, "username": username, "app_mode": APP_MODE})
 
 @router.get("/ordini_materiale/nuovo_ordine")
 async def materiali_nuovo_ordine(request: Request, db: Session = Depends(get_db)):
-    username = request.cookies.get("session")
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
     if not username:
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/login")
-
-    return templates.TemplateResponse("ordini_materiale_nuovo_ordine.html", {
-        "request": request,
-        "username": username
-    })
+        return RedirectResponse("/login")
+    return templates.TemplateResponse("ordini_materiale_nuovo_ordine.html", {"request": request, "username": username, "app_mode": APP_MODE})
 
 @router.get("/ordini_materiale/ricerca_ordine")
 async def materiali_ricerca_ordine(request: Request, db: Session = Depends(get_db)):
-    username = request.cookies.get("session")
+    session_cookie = request.cookies.get("session")
+    username = None
+    if session_cookie:
+        try:
+            session_data = json.loads(session_cookie)
+            username = session_data.get("login")
+        except Exception:
+            username = None
     if not username:
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/login")
-
-    return templates.TemplateResponse("ordini_materiale_ricerca_ordine.html", {
-        "request": request,
-        "username": username
-    })
+        return RedirectResponse("/login")
+    return templates.TemplateResponse("ordini_materiale_ricerca_ordine.html", {"request": request, "username": username, "app_mode": APP_MODE})

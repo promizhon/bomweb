@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from database_config import get_db
 from models.utente import Utente
 from uuid import uuid4
+import json
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -44,10 +45,13 @@ async def login(
             }
         )
 
-
     response = RedirectResponse(url=f"/?_={uuid4()}", status_code=302)
 
-    response.set_cookie(key="session", value=username, max_age=60*60*24*30)  # ✅ cookie coerente
+    # Salva nel cookie un JSON con login, ruolo_id e id (se disponibile)
+    session_data = {"login": user.login, "ruolo_id": user.ruolo_id}
+    if hasattr(user, "id"):
+        session_data["id"] = user.id
+    response.set_cookie(key="session", value=json.dumps(session_data), max_age=60*60*24*30)
     return response
 
 @router.get("/logout")

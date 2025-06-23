@@ -182,12 +182,21 @@
         params.append('month', selectedMonth);
         params.append('visible_columns', JSON.stringify(visibleColumns));
 
-        const activeFilters = getActiveFilters();
-        if (activeFilters.global_search) {
-            params.append('global_search', activeFilters.global_search);
+        // Ricerca generica
+        const searchInput = document.getElementById('generic-search');
+        if (searchInput && searchInput.value) {
+            params.append('global_search', searchInput.value);
         }
 
+        // Filtri per colonna
         const columnFilters = {};
+        // Filtro RTC
+        const rtcFilter = document.getElementById('rtc-filter');
+        if (rtcFilter && rtcFilter.value) {
+            columnFilters['RTC'] = { value: rtcFilter.value, regex: false };
+        }
+        // Altri filtri DataTables
+        const activeFilters = getActiveFilters();
         for (const key in activeFilters) {
             if (key !== 'global_search') {
                 columnFilters[key] = activeFilters[key];
@@ -211,8 +220,9 @@
         rtcFilter.innerHTML = '<option value="" selected>Seleziona RTC...</option>';
         if (!mese) return;
         try {
-            // Prepara il payload come DataTables
+            // Richiedi solo i valori unici della colonna RTC
             const payload = {
+                column: "RTC",
                 month_filter: mese,
                 search: { value: ricerca },
                 columns: table ? table.settings()[0].aoColumns.map(() => ({ search: { value: '' } })) : []
@@ -224,10 +234,8 @@
             });
             let rtcValues = await response.json();
             rtcValues = Array.from(new Set(rtcValues));
-            if (JSON.stringify(rtcValues) === JSON.stringify(lastRTCValues)) return;
-            lastRTCValues = rtcValues;
-            if (rtcValues && rtcValues.length > 0) {
-                rtcValues.forEach(rtc => rtcFilter.add(new Option(rtc, rtc)));
+            rtcValues.forEach(rtc => rtcFilter.add(new Option(rtc, rtc)));
+            if (rtcValues.length > 0) {
                 rtcFilter.disabled = false;
             } else {
                 rtcFilter.value = '';
@@ -272,13 +280,14 @@
             }
 
             columnsConfig = columns.map((col, idx) => {
-                const config = {
-                    data: col,
-                    title: col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                    className: col === 'id' ? 'editable' : '',
-                    visible: visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true
+                const field = col.field || col; // compatibilità con entrambi i formati
+                const title = col.title || (typeof field === 'string' ? field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '');
+                return {
+                    data: field,
+                    title: title,
+                    className: field === 'id' ? 'editable' : '',
+                    visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true)
                 };
-                return config;
             });
 
             const headerRow = `<tr>${columnsConfig.map(c => `<th>${c.title}</th>`).join('')}</tr>`;
@@ -522,6 +531,14 @@
                             const rowElement = api.row(indexes).node();
                         }
                     });
+
+                    // Applica la visibilità di default delle colonne in base al backend
+                    table.columns().every(function (idx) {
+                        const colDef = columnsConfig[idx];
+                        if (typeof colDef.visible === 'boolean') {
+                            table.column(idx).visible(colDef.visible);
+                        }
+                    });
                 }
             });
 
@@ -728,5 +745,28 @@
     $(document).on('draw.dt', function () {
         $('.dataTables_info').hide();
         $('#gestione-gs-table').parent().nextAll('.dataTables_info').first().show();
+    });
+
+    // Listener globale per ESC: resetta tutti i filtri tranne il mese
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            // Reset filtro RTC
+            const rtcFilter = document.getElementById('rtc-filter');
+            if (rtcFilter) {
+                rtcFilter.value = '';
+                rtcFilter.dispatchEvent(new Event('change'));
+            }
+            // Reset ricerca generica
+            const searchInput = document.getElementById('generic-search');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            // Reset filtri DataTables (se presenti)
+            if (window.$ && $.fn.DataTable && table) {
+                table.search('').columns().search('').draw();
+            }
+            // Reset filtri avanzati custom (se presenti)
+            document.querySelectorAll('.column-filter').forEach(input => input.value = '');
+        }
     });
 })();

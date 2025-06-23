@@ -1,4 +1,3 @@
-import json
 import traceback
 from fastapi import APIRouter, Depends, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -11,9 +10,11 @@ import pandas as pd
 import io
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import json
 
 # Import per il logging
 from models.carrefour_log import CarrefourLog
+from models.utente import UtenteRuoliPermessi, Utente
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -228,19 +229,45 @@ async def get_gestione_gs_tab(request: Request):
     return templates.TemplateResponse("ordini_servizi_ge.html", {"request": request})
 
 @router.get("/api/servizi/ge/columns")
-async def get_gestione_gs_columns(db: Session = Depends(get_db)):
+async def get_gestione_gs_columns(request: Request, db: Session = Depends(get_db)):
     try:
+        # Leggi il cookie di sessione come JSON
+        session_cookie = request.cookies.get("session")
+        if not session_cookie:
+            return JSONResponse(status_code=401, content={"error": "Utente non autenticato"})
+        try:
+            session_data = json.loads(session_cookie)
+            user_id = session_data.get("id")
+            ruolo_id = session_data.get("ruolo_id")
+        except Exception:
+            return JSONResponse(status_code=401, content={"error": "Sessione non valida"})
+        if not user_id:
+            return JSONResponse(status_code=401, content={"error": "ID utente mancante nella sessione"})
+        utente = db.query(Utente).filter_by(id=user_id).first()
+        if not utente:
+            return JSONResponse(status_code=404, content={"error": "Utente non trovato"})
+        if not ruolo_id:
+            return JSONResponse(status_code=400, content={"error": "Ruolo non trovato per l'utente"})
+        permessi = db.query(UtenteRuoliPermessi).filter_by(ruolo_id=ruolo_id).first()
+        colonne_nascoste = []
+        if permessi and permessi.colonne_ordini_servizio_ge:
+            colonne_nascoste = [c.strip() for c in permessi.colonne_ordini_servizio_ge.split(',') if c.strip()]
         filter_manager = FilterManager(db, TABLE_NAME)
         columns = filter_manager.column_names
         if not columns:
-            # Questo caso potrebbe essere normale se la tabella è vuota ma esiste
-            # Considerare se restituire un array vuoto o un errore 404
             return JSONResponse([])
-            # raise HTTPException(status_code=404, detail="Nessuna colonna trovata nella tabella")
-        return JSONResponse(columns)
+        columns_out = [
+            {"field": col, "title": col.replace('_', ' ').title(), "visible": col not in colonne_nascoste}
+            for col in columns
+        ]
+        return JSONResponse(columns_out)
     except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Errore nel recupero delle colonne: {str(e)}")
+        import sys
+        import traceback
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        tb_str = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        print("[DEBUG ERRORE /api/servizi/ge/columns]\n", tb_str)
+        raise HTTPException(status_code=500, detail=f"Errore nel recupero delle colonne: {str(e)}\nTRACEBACK:\n{tb_str}")
 
 @router.get("/api/servizi/ge/months")
 async def get_presentation_months():
