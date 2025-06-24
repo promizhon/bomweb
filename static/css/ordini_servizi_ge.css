@@ -1,5 +1,4 @@
-/* Stile per le nuove tab di Bootstrap 5 per assomigliare a quelle vecchie */
-/* Stile per le tab di Bootstrap 5 in Ordini Servizi */
+/* Stili per le tab di Ordini Servizi */
 .nav-tabs#serviziTab .nav-link {
     background: none !important;
     border: none !important;
@@ -7,12 +6,6 @@
     font-weight: 600;
     transition: color 0.2s ease;
     padding: 10px 14px;
-}
-
-#month-filter,
-#generic-search {
-    min-width: 100px;
-    max-width: 180px;
 }
 
 .nav-tabs#serviziTab .nav-link:hover {
@@ -27,27 +20,11 @@
     box-shadow: none !important;
 }
 
-/* Fix per i pulsanti di DataTables che si espandono in modo anomalo */
-.dt-buttons .btn {
-    flex-shrink: 0;
-    /* Impedisce al pulsante di restringersi o espandersi */
-    white-space: nowrap;
-    /* Assicura che il testo del pulsante non vada a capo */
-}
-
-/* Contenitore dei bottoni per gestire meglio il layout */
-/* Rimosso: #table-buttons {
-    display: flex;
-    flex-wrap: wrap;
-     Permette ai bottoni di andare a capo se non c'è abbastanza spazio 
-    gap: 5px;
-     Aggiunge un po' di spazio tra i bottoni 
-} */
-
 .main-content #serviziTab {
     background-color: transparent !important;
 }
 
+/* Layout principale e sidebar */
 .main-content {
     flex: 1;
     padding: 2rem;
@@ -65,18 +42,170 @@ body.sidebar-collapsed .main-content {
     width: 100%;
 }
 
-.table-wrapper-fix {
-    overflow-x: auto;
-    width: 100%;
-    position: relative;
-    z-index: 1;
-    margin-bottom: 2rem;
-    /* Assicura che la tabella abbia una larghezza minima per lo scroll orizzontale */
-    min-height: 0.01%;
-    overflow-x: auto; /* Questa riga è duplicata ma non dannosa */
+/* Controlli principali della pagina (filtri, bottoni, etc.) */
+#month-filter,
+#generic-search {
+    min-width: 100px;
+    max-width: 180px;
 }
 
-/* Stile per l'header dello scroll orizzontale */
+#main-controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem; 
+    margin-bottom: 1rem;
+}
+
+#main-controls-row>div { /* Contenitori dei gruppi di controlli */
+    display: flex;
+    align-items: center;
+    gap: 0.75rem !important; /* Aumentato gap come da originale */
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#main-controls-row .form-select,
+#main-controls-row .form-control,
+#main-controls-row button,
+#main-controls-row .form-check-input {
+    min-width: 140px !important;
+    max-width: 200px !important;
+    width: 180px !important;
+    height: 38px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.95rem !important;
+    line-height: 1.5 !important;
+    vertical-align: middle !important;
+}
+
+#main-controls-row button {
+    min-width: 120px !important; /* Leggermente meno di default per i bottoni */
+    width: auto !important; /* Permette ai bottoni di adattarsi al contenuto */
+}
+
+#main-controls-row .form-check-input {
+    width: 2.2em !important;
+    min-width: 2.2em !important;
+    max-width: 2.2em !important;
+    height: 1.2em !important;
+    min-height: 1.2em !important;
+    max-height: 1.2em !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#main-controls-row .form-check {
+    height: 38px !important;
+    display: flex;
+    align-items: center;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#main-controls-row .form-check-label {
+    margin-left: 0.5em;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    height: 38px;
+    display: flex;
+    align-items: center;
+}
+
+/* Stili specifici per DataTables e i suoi componenti */
+.dt-buttons .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin: 0 !important; /* Assicura che i singoli bottoni non abbiano margini extra */
+}
+
+.dataTables_length,
+.dataTables_filter,
+.dt-buttons {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.dataTables_filter input[type="search"],
+.dataTables_length select {
+    margin: 0 !important;
+    padding: 0.375rem 0.75rem;
+    width: auto !important;
+    max-width: 150px;
+    min-width: 80px;
+}
+
+#dt-length-container .dataTables_length label,
+#dt-filter-container .dataTables_filter label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 !important;
+}
+
+#dt-buttons-container .dt-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 !important;
+}
+
+/* Label DataTables sopra il select "Visualizza elementi" */
+#dt-length-container .dataTables_length label {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0 !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 0 !important;
+    margin-top: 0 !important;
+    height: auto !important;
+    white-space: normal !important;
+}
+
+#dt-length-container .dataTables_length label>select {
+    margin-top: 0.1em !important;
+}
+
+#dt-length-container .dataTables_length select {
+    width: 100% !important;
+    min-width: 100px !important;
+    max-width: 180px !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.95rem !important;
+    box-sizing: border-box !important;
+}
+
+/* Nascondi tutte le info DataTables tranne l'ultima (quella dopo la tabella) */
+.dataTables_wrapper .dataTables_info {
+    display: none !important;
+}
+
+.dataTables_wrapper .dataTables_info:last-of-type {
+    display: block !important;
+}
+
+/* Posizione della paginazione DataTables */
+.dataTables_wrapper .dataTables_paginate {
+    width: 100% !important;
+    min-width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    margin-top: 1rem !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    background: #fff !important;
+    z-index: 10;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+
+/* Struttura e stili della tabella e scroll */
 .table-scroll-header {
     width: 100%;
     overflow-x: auto;
@@ -93,39 +222,79 @@ body.sidebar-collapsed .main-content {
     min-width: 100%;
 }
 
-/* Stile per il contenitore della tabella (duplicato da sopra, ma manteniamo per coerenza con l'originale) */
 .table-wrapper-fix {
-    width: 100%;
     overflow-x: auto;
-    margin-bottom: 1rem;
-    border: 1px solid #dee2e6;
+    width: 100%;
+    position: relative; /* Necessario per alcuni posizionamenti interni o z-index se usati */
+    z-index: 1; /* Per contesto di stacking, se necessario */
+    margin-bottom: 1rem; /* Spazio sotto la tabella e il suo scroll */
+    border: 1px solid #dee2e6; /* Bordo attorno al contenitore della tabella */
+    min-height: 0.01%; /* Workaround per alcuni bug di overflow in vecchi browser */
 }
 
-/* Stile per la tabella */
 #gestione-gs-table {
-    width: 100% !important;
-    margin-bottom: 0 !important;
-    min-width: 100%;
+    width: 100% !important; /* Assicura che la tabella tenti di usare tutta la larghezza */
+    margin-bottom: 0 !important; /* Rimuove margine inferiore dalla tabella stessa */
+    min-width: 100%; /* Utile con 'nowrap' per forzare lo scroll orizzontale */
 }
 
-.filter-container {
-    padding: 0.5rem;
-    background-color: #f8f9fa;
-    border-radius: 0.25rem;
-    margin-bottom: 1rem;
+/* Stili per righe e celle editabili */
+#gestione-gs-table tbody tr.selected {
+    background-color: #d0e9fa !important;
 }
 
-.table-container {
+#gestione-gs-table td.editable {
     position: relative;
-    z-index: 1;
-    background: white;
-    border-radius: 0.25rem;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    padding: 1rem;
-    margin-bottom: 1rem;
+    cursor: pointer;
 }
 
-.search-box {
+#gestione-gs-table td.editable:hover {
+    background-color: #f8f9fa;
+}
+
+#gestione-gs-table td.editable.editing {
+    padding: 0;
+}
+
+#gestione-gs-table td.editable.editing input {
+    width: 100%;
+    height: 100%;
+    padding: 0.375rem 0.75rem;
+    border: 2px solid #007bff;
+    border-radius: 0;
+    margin: 0;
+}
+
+#gestione-gs-table.edit-mode-active td.editable {
+    cursor: pointer;
+    /* position: relative; già definito sopra */
+}
+
+#gestione-gs-table.edit-mode-active td.editable:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+#gestione-gs-table.edit-mode-active td.editable:hover::after {
+    content: "✎";
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #007bff;
+    font-size: 0.8em;
+}
+
+#gestione-gs-table:not(.edit-mode-active) td.editable {
+    cursor: not-allowed;
+}
+
+#gestione-gs-table:not(.edit-mode-active) td.editable:hover {
+    background-color: rgba(255, 0, 0, 0.1);
+}
+
+
+/* Pannello Filtri Avanzati */
+.search-box { /* Sembra non utilizzato, ma lo lascio per ora */
     position: relative;
 }
 
@@ -133,7 +302,7 @@ body.sidebar-collapsed .main-content {
     padding-right: 2.5rem;
 }
 
-.search-box::after {
+.search-box::after { /* Icona per search-box, se usato */
     content: '\f002';
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
@@ -144,7 +313,6 @@ body.sidebar-collapsed .main-content {
     color: #6c757d;
 }
 
-/* Pannello filtri avanzati */
 .advanced-filters-panel {
     position: fixed;
     top: 0;
@@ -183,7 +351,7 @@ body.sidebar-collapsed .main-content {
     padding: 2rem;
 }
 
-#column-filters-container {
+#column-filters-container { /* Contenitore per i filtri per colonna nel pannello */
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 1rem;
@@ -191,7 +359,7 @@ body.sidebar-collapsed .main-content {
     margin-right: 0;
 }
 
-.filter-item {
+.filter-item { /* Singolo elemento filtro nel pannello */
     margin-bottom: 0.5rem;
     position: relative;
     padding: 0 0.5rem;
@@ -222,7 +390,7 @@ body.sidebar-collapsed .main-content {
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
 }
 
-.filter-item .dropdown-menu {
+.filter-item .dropdown-menu { /* Per dropdown di suggerimenti sui filtri */
     max-height: 250px;
     overflow-y: auto;
     width: 100%;
@@ -256,8 +424,7 @@ body.sidebar-collapsed .main-content {
     background-color: #e9ecef;
 }
 
-/* Overlay per il pannello */
-.advanced-filters-overlay {
+.advanced-filters-overlay { /* Overlay scuro quando il pannello filtri è aperto */
     position: fixed;
     top: 0;
     left: 0;
@@ -272,7 +439,7 @@ body.sidebar-collapsed .main-content {
     display: block;
 }
 
-/* Stile per il pulsante dropdown */
+/* Stili minori per bottoni e contenitori filtro */
 .filter-item .btn-outline-secondary {
     border-color: #ced4da;
     padding: 0.25rem 0.5rem;
@@ -283,12 +450,20 @@ body.sidebar-collapsed .main-content {
     border-color: #ced4da;
 }
 
-/* Stile per il container dei filtri quando sono in hover */
-.filter-container:hover {
+.filter-container:hover { /* Sembra non utilizzato, ma lo lascio */
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive adjustments */
+.advanced-filters-footer { /* Footer del pannello filtri, se ci fosse */
+    padding: 1rem;
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Media queries per responsività del pannello filtri */
 @media (max-width: 768px) {
     .filter-item {
         min-width: 100%;
@@ -299,297 +474,10 @@ body.sidebar-collapsed .main-content {
 @media (max-width: 576px) {
     .advanced-filters-panel {
         width: 100%;
-        right: -100%;
+        right: -100%; /* Inizia fuori schermo */
     }
 
-    .filters-grid {
+    #column-filters-container { /* Modificato da .filters-grid */
         grid-template-columns: 1fr;
     }
-}
-
-/* Stili per i controlli di DataTables all'interno del layout flexbox */
-/* Rimosso: #dt-length-container .dataTables_length,
-#dt-buttons-container .dt-buttons,
-#dt-filter-container .dataTables_filter {
-    margin-bottom: 0; 
-}
-
-#dt-length-container .dataTables_length label,
-#dt-filter-container .dataTables_filter label {
-    display: flex; 
-    align-items: center;
-    gap: 0.5rem; 
-}
-
-#dt-filter-container .dataTables_filter input {
-    flex-grow: 1; 
-    min-width: 150px; 
-}
-
-#main-controls-row .dt-buttons .btn {
-    margin-bottom: 0; 
-} */
-
-/* Nuovo stile per il contenitore principale dei controlli */
-#main-controls-row {
-    display: flex;
-    /* Assicura che sia un contenitore flex */
-    flex-wrap: wrap;
-    justify-content: space-between;
-    /* Distribuisce gli elementi */
-    align-items: center;
-    /* Allinea verticalmente */
-    gap: 0.75rem;
-    /* Aumento leggermente lo spazio tra i gruppi di elementi */
-    margin-bottom: 1rem;
-    /* Margine inferiore standard per separare dalla tabella */
-}
-
-/* Stili per i contenitori che ospitano i controlli (es. DataTables) */
-#main-controls-row>div {
-    display: flex;
-    /* Assicura che i div figli siano contenitori flex */
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0 !important;
-    /* Rimuove qualsiasi margine inatteso dai contenitori intermedi */
-    padding: 0 !important;
-    /* Rimuove qualsiasi padding inatteso */
-}
-
-#main-controls-row .form-select,
-#main-controls-row .form-control,
-#main-controls-row button,
-#main-controls-row .form-check-input {
-    min-width: 140px !important;
-    max-width: 200px !important;
-    width: 180px !important;
-    height: 38px !important;
-    box-sizing: border-box !important;
-    margin: 0 !important;
-    padding: 0.375rem 0.75rem !important;
-    font-size: 0.95rem !important;
-    line-height: 1.5 !important;
-    vertical-align: middle !important;
-}
-
-#main-controls-row button {
-    min-width: 120px !important;
-    max-width: 180px !important;
-    width: auto !important;
-    height: 38px !important;
-    padding: 0.375rem 0.75rem !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#main-controls-row .form-check-input {
-    width: 2.2em !important;
-    min-width: 2.2em !important;
-    max-width: 2.2em !important;
-    height: 1.2em !important;
-    min-height: 1.2em !important;
-    max-height: 1.2em !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-}
-
-#main-controls-row .form-check {
-    height: 38px !important;
-    display: flex;
-    align-items: center;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-#main-controls-row .form-check-label {
-    margin-left: 0.5em;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    height: 38px;
-    display: flex;
-    align-items: center;
-}
-
-/* Stili per i contenitori principali di DataTables per rimuovere margini/padding inattesi */
-.dataTables_length,
-.dataTables_filter,
-.dt-buttons {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Stili per gli input di DataTables (ricerca e selettore righe) */
-.dataTables_filter input[type="search"],
-.dataTables_length select {
-    margin: 0 !important;
-    /* Rimuove margini interni */
-    padding: 0.375rem 0.75rem;
-    /* Padding standard Bootstrap per input */
-    width: auto !important;
-    /* Permette al flexbox di gestire la larghezza */
-    max-width: 150px;
-    /* Larghezza massima più contenuta */
-    min-width: 80px;
-}
-
-/* Stili per i controlli di DataTables generati dinamicamente */
-#dt-length-container .dataTables_length label,
-#dt-filter-container .dataTables_filter label {
-    display: flex;
-    /* Assicura che etichetta e input/select siano allineati */
-    align-items: center;
-    gap: 0.5rem;
-    /* Spazio tra etichetta e input/select */
-    margin: 0 !important;
-    /* Rimuove il margine inferiore predefinito delle label */
-}
-
-#dt-buttons-container .dt-buttons {
-    display: flex;
-    /* Assicura che i bottoni DataTables siano allineati */
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0 !important;
-    /* Rimuove il margine inferiore predefinito dei bottoni */
-}
-
-.dt-buttons .btn {
-    margin: 0 !important;
-    /* Assicura che i singoli bottoni non abbiano margini extra */
-}
-
-/* Rimuovo il blocco CSS obsoleto per #table-buttons */
-/* #table-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-} */
-
-/* Selected row highlighting */
-#gestione-gs-table tbody tr.selected {
-    background-color: #d0e9fa !important;
-    /* Un blu chiaro */
-}
-
-/* Editable cell styles */
-#gestione-gs-table td.editable {
-    position: relative;
-    cursor: pointer;
-}
-
-#gestione-gs-table td.editable:hover {
-    background-color: #f8f9fa;
-}
-
-#gestione-gs-table td.editable.editing {
-    padding: 0;
-}
-
-#gestione-gs-table td.editable.editing input {
-    width: 100%;
-    height: 100%;
-    padding: 0.375rem 0.75rem;
-    border: 2px solid #007bff;
-    border-radius: 0;
-    margin: 0;
-}
-
-/* Stili per la modalità modifica */
-#gestione-gs-table.edit-mode-active td.editable {
-    cursor: pointer;
-    position: relative;
-}
-
-#gestione-gs-table.edit-mode-active td.editable:hover {
-    background-color: rgba(0, 123, 255, 0.1);
-}
-
-#gestione-gs-table.edit-mode-active td.editable:hover::after {
-    content: "✎";
-    position: absolute;
-    right: 5px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #007bff;
-    font-size: 0.8em;
-}
-
-#gestione-gs-table:not(.edit-mode-active) td.editable {
-    cursor: not-allowed;
-}
-
-#gestione-gs-table:not(.edit-mode-active) td.editable:hover {
-    background-color: rgba(255, 0, 0, 0.1);
-}
-
-.advanced-filters-footer {
-    padding: 1rem;
-    border-top: 1px solid #dee2e6;
-    background-color: #f8f9fa;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-}
-
-/* Stile per le righe selezionate */
-/* Rimosso: .table-row-selected {
-    background-color: #d0e9fa !important; 
-    Un blu chiaro 
-} */
-
-/* Label DataTables sopra il select "Visualizza elementi" */
-#dt-length-container .dataTables_length label {
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 0 !important;
-    font-size: 0.95rem !important;
-    margin-bottom: 0 !important;
-    margin-top: 0 !important;
-    height: auto !important;
-    white-space: normal !important;
-}
-
-#dt-length-container .dataTables_length label>select {
-    margin-top: 0.1em !important;
-}
-
-#dt-length-container .dataTables_length select {
-    width: 100% !important;
-    min-width: 100px !important;
-    max-width: 180px !important;
-    height: 38px !important;
-    margin: 0 !important;
-    padding: 0.375rem 0.75rem !important;
-    font-size: 0.95rem !important;
-    box-sizing: border-box !important;
-}
-
-#main-controls-row>div {
-    gap: 0.75rem !important;
-}
-
-/* Nascondi tutte le info tranne l'ultima */
-.dataTables_wrapper .dataTables_info {
-    display: none !important;
-}
-
-.dataTables_wrapper .dataTables_info:last-of-type {
-    display: block !important;
-}
-
-/* Migliora la posizione della paginazione DataTables */
-.dataTables_wrapper .dataTables_paginate {
-    width: 100% !important;
-    min-width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-    margin-top: 1rem !important;
-    position: sticky !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    background: #fff !important;
-    z-index: 10;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
 }

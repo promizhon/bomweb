@@ -1,6 +1,4 @@
-console.log('ordini_servizi_ge.js caricato ed eseguito.');
-
-let table;
+let table; // Questa variabile globale 'table' verrà usata per l'API di DataTables
 let editModeEnabled = false;
 let visibleColumnsState = [];
 let columnsConfig = [];
@@ -11,30 +9,31 @@ let cellTooltipListenersAdded = false;
 
 // Funzione di utilità per la gestione degli errori
 function handleError(error, message = 'Si è verificato un errore') {
-    alert(`${message}: ${error.message || error}`);
-    $('#loading-indicator').hide();
-    $('#gestione-gs-table').show();
+    console.error(message, error);
+    // Considera di mostrare un messaggio più user-friendly all'utente
+    // $('#loading-indicator').hide();
+    // $('#gestione-gs-table').show();
 }
 
 // Funzione di utilità per la gestione delle risposte AJAX
 function handleAjaxError(xhr, status, error) {
     const errorMessage = xhr.responseJSON?.message || error || 'Errore sconosciuto';
-    handleError(errorMessage, 'Errore nella richiesta');
+    handleError(new Error(errorMessage), 'Errore nella richiesta AJAX');
 }
 
-// Funzione di utilità per la gestione dei filtri
+// Funzione di utilità per ottenere i filtri attivi
 function getActiveFilters() {
     const filters = {};
-    if (!table) return filters;
+    if (!window.table) return filters; // Usa window.table per l'API DataTables
 
-    const globalSearch = table.search();
+    const globalSearch = window.table.search();
     if (globalSearch) filters['global_search'] = globalSearch;
 
-    table.columns().every(function () {
+    window.table.columns().every(function () {
         const column = this;
         const colName = column.settings()[0].aoColumns[column.index()].data;
         const colValue = column.search();
-        const colRegex = colValue.startsWith('^') && colValue.endsWith('$');
+        const colRegex = colValue ? colValue.startsWith('^') && colValue.endsWith('$') : false;
         if (colValue) filters[colName] = { value: colValue, regex: colRegex };
     });
 
@@ -49,7 +48,6 @@ function setupOrdiniServiziPage() {
         return;
     }
 
-    // Inizializza i tab
     const tabButtons = document.querySelectorAll('#serviziTab .tab-btn');
     tabButtons.forEach(button => {
         button.addEventListener('click', function () {
@@ -58,7 +56,6 @@ function setupOrdiniServiziPage() {
         });
     });
 
-    // Carica il contenuto iniziale
     const activeTab = document.querySelector('#serviziTab .tab-btn.active');
     if (activeTab) {
         caricaTabServizi(activeTab.dataset.tab, activeTab);
@@ -78,81 +75,74 @@ function caricaTabServizi(tabName, btn) {
         return;
     }
 
-    if (tabName === 'ge') {
-        // Carica prima il contenuto del tab
-        fetch('/ordini_servizi/ge')
-            .then(response => {
-                if (!response.ok) throw new Error('Errore di rete');
-                return response.text();
-            })
-            .then(html => {
-                contentArea.innerHTML = html;
-                // Dopo aver caricato il contenuto, inizializza i controlli
+    // Mostra un indicatore di caricamento se disponibile
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+    const url = tabName === 'ge' ? '/ordini_servizi/ge' : `/ordini_servizi/${tabName}`;
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error(`Errore di rete: ${response.status}`);
+            return response.text();
+        })
+        .then(html => {
+            contentArea.innerHTML = html;
+            if (tabName === 'ge') {
                 initializeGestioneGSControls();
-            })
-            .catch(error => {
-                console.error('Errore nel caricamento del tab:', error);
-                contentArea.innerHTML = '<p class="text-danger">Impossibile caricare il contenuto del tab.</p>';
-            });
-    } else {
-        // Per gli altri tab, carica il contenuto via AJAX
-        fetch(`/ordini_servizi/${tabName}`)
-            .then(response => {
-                if (!response.ok) throw new Error('Errore di rete');
-                return response.text();
-            })
-            .then(html => {
-                contentArea.innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Errore nel caricamento del tab:', error);
-                contentArea.innerHTML = '<p class="text-danger">Impossibile caricare il contenuto del tab.</p>';
-            });
-    }
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento del tab:', error);
+            contentArea.innerHTML = `<p class="text-danger">Impossibile caricare il contenuto del tab: ${error.message}</p>`;
+        })
+        .finally(() => {
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+        });
 }
 
-// Inizializza la pagina quando il documento è pronto
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupOrdiniServiziPage);
 } else {
     setupOrdiniServiziPage();
 }
 
-// Funzione di utilità per la gestione delle colonne
 function updateColumnVisibility() {
-    if (table && visibleColumnsState.length > 0) {
-        table.columns().every(function (idx) {
-            table.column(idx).visible(visibleColumnsState.includes(idx));
+    if (window.table && visibleColumnsState.length > 0) {
+        window.table.columns().every(function (idx) {
+            window.table.column(idx).visible(visibleColumnsState.includes(idx));
         });
     }
 }
 
 function saveColumnVisibility() {
-    if (table) {
-        visibleColumnsState = table.columns().indexes().filter(idx => table.column(idx).visible()).toArray();
+    if (window.table) {
+        visibleColumnsState = window.table.columns().indexes().filter(idx => window.table.column(idx).visible()).toArray();
     }
 }
 
 function updateEditModeState(enabled) {
     editModeEnabled = enabled;
-    const table = $('#gestione-gs-table');
+    const tableElement = $('#gestione-gs-table');
     if (enabled) {
-        table.addClass('edit-mode-active');
+        tableElement.addClass('edit-mode-active');
     } else {
-        table.removeClass('edit-mode-active');
+        tableElement.removeClass('edit-mode-active');
     }
 }
 
 function initializeToggle() {
     const toggleEditMode = document.getElementById('toggle-edit-mode');
     if (toggleEditMode) {
-        toggleEditMode.removeEventListener('change', toggleEditMode._changeHandler);
-        toggleEditMode._changeHandler = function () {
+        // Rimuovi eventuali listener precedenti per evitare duplicazioni
+        const newToggle = toggleEditMode.cloneNode(true);
+        toggleEditMode.parentNode.replaceChild(newToggle, toggleEditMode);
+        
+        newToggle.addEventListener('change', function () {
             updateEditModeState(this.checked);
-        };
-        toggleEditMode.addEventListener('change', toggleEditMode._changeHandler);
-        toggleEditMode.checked = editModeEnabled;
-        updateEditModeState(editModeEnabled);
+        });
+        newToggle.checked = editModeEnabled;
+        updateEditModeState(editModeEnabled); // Sincronizza lo stato iniziale
     }
 }
 
@@ -161,21 +151,21 @@ function escapeRegex(string) {
 }
 
 function handleExport() {
-    if (!table) {
-        handleError('Tabella non inizializzata');
+    if (!window.table) {
+        handleError(new Error('La tabella non è inizializzata.'), 'Errore Esportazione');
         return;
     }
 
     const selectedMonth = $('#month-filter').val();
     if (!selectedMonth) {
-        handleError('Seleziona un mese prima di esportare');
+        handleError(new Error('Nessun mese selezionato.'), 'Errore Esportazione: Seleziona un mese prima di esportare');
         return;
     }
 
     const visibleColumns = [];
-    table.columns().every(function (idx) {
-        if (table.column(idx).visible()) {
-            const columnData = table.settings()[0].aoColumns[idx].data;
+    window.table.columns().every(function (idx) {
+        if (window.table.column(idx).visible()) {
+            const columnData = window.table.settings()[0].aoColumns[idx].data;
             visibleColumns.push(columnData);
         }
     });
@@ -184,23 +174,19 @@ function handleExport() {
     params.append('month', selectedMonth);
     params.append('visible_columns', JSON.stringify(visibleColumns));
 
-    // Ricerca generica
     const searchInput = document.getElementById('generic-search');
     if (searchInput && searchInput.value) {
         params.append('global_search', searchInput.value);
     }
 
-    // Filtri per colonna
     const columnFilters = {};
-    // Filtro RTC
     const rtcFilter = document.getElementById('rtc-filter');
     if (rtcFilter && rtcFilter.value) {
         columnFilters['RTC'] = { value: rtcFilter.value, regex: false };
     }
-    // Altri filtri DataTables
     const activeFilters = getActiveFilters();
     for (const key in activeFilters) {
-        if (key !== 'global_search') {
+        if (key !== 'global_search' && activeFilters[key].value) { // Assicurati che il valore del filtro esista
             columnFilters[key] = activeFilters[key];
         }
     }
@@ -212,7 +198,6 @@ function handleExport() {
     window.location.href = `/api/servizi/ge/export?${query}`;
 }
 
-// Funzione per popolare il filtro RTC
 async function aggiornaFiltroRTC() {
     const mese = $('#month-filter').val();
     const ricerca = $('#generic-search').val();
@@ -220,86 +205,97 @@ async function aggiornaFiltroRTC() {
     if (!rtcFilter) return;
     rtcFilter.disabled = true;
     rtcFilter.innerHTML = '<option value="" selected>Seleziona RTC...</option>';
-    if (!mese) return;
+    if (!mese) {
+        rtcFilter.disabled = false; // Riabilita se il mese non è selezionato, anche se vuoto
+        return;
+    }
     try {
-        // Richiedi solo i valori unici della colonna RTC
         const payload = {
             column: "RTC",
             month_filter: mese,
             search: { value: ricerca },
-            columns: table ? table.settings()[0].aoColumns.map(() => ({ search: { value: '' } })) : []
+            columns: window.table ? window.table.settings()[0].aoColumns.map(() => ({ search: { value: '' } })) : []
         };
         const response = await fetch('/api/servizi/ge/unique_values', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        let rtcValues = await response.json();
-        rtcValues = Array.from(new Set(rtcValues));
-        rtcValues.forEach(rtc => rtcFilter.add(new Option(rtc, rtc)));
-        if (rtcValues.length > 0) {
-            rtcFilter.disabled = false;
-        } else {
-            rtcFilter.value = '';
+        if (!response.ok) {
+            throw new Error(`Errore HTTP: ${response.status}`);
         }
+        let rtcValues = await response.json();
+        rtcValues = Array.from(new Set(rtcValues)); // Rimuove duplicati
+        rtcValues.forEach(rtc => rtcFilter.add(new Option(rtc, rtc)));
+        rtcFilter.disabled = false; // Riabilita dopo il caricamento
     } catch (error) {
         console.error('Errore nel caricamento dei valori RTC:', error);
+        rtcFilter.disabled = false; // Riabilita anche in caso di errore
     }
 }
 
 async function initializeDataTable() {
+    console.log('[initializeDataTable] Inizio inizializzazione DataTable.');
     const selectedMonth = $('#month-filter').val();
 
     if (typeof $.fn.DataTable === 'undefined') {
-        handleError('DataTables non è stato caricato');
+        handleError(new Error('DataTables non è stato caricato.'), 'Errore Inizializzazione Tabella');
         return;
     }
 
     if (!selectedMonth) {
+        console.log('[initializeDataTable] Nessun mese selezionato, inizializzazione tabella saltata.');
+        // Potresti voler nascondere o mostrare un messaggio qui
+        if (window.table) {
+            window.table.clear().draw(); // Pulisce la tabella se era già inizializzata
+        }
         return;
     }
 
+    // Mostra l'indicatore di caricamento se esiste
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+    const tableElement = $('#gestione-gs-table');
+    if (tableElement.length) tableElement.hide(); // Nascondi la tabella durante il caricamento
+
     try {
+        // Pulisci i contenitori dei controlli DataTables prima di reinizializzare
         $('#dt-length-container').empty();
         $('#dt-buttons-container').empty();
         $('#dt-filter-container').empty();
-
-        columnsConfig = [];
 
         const columnsResponse = await fetch('/api/servizi/ge/columns');
         if (!columnsResponse.ok) {
             throw new Error(`Errore nel recupero delle colonne: ${columnsResponse.status}`);
         }
+        const columnsData = await columnsResponse.json();
 
-        const columns = await columnsResponse.json();
-
-        if (!Array.isArray(columns)) {
-            throw new Error('La risposta delle colonne non è un array valido');
-        }
-
-        if (columns.length === 0) {
-            console.warn('Nessuna colonna ricevuta dal server');
-        }
-
-        columnsConfig = columns.map((col, idx) => {
-            const field = col.field || col; // compatibilità con entrambi i formati
-            const title = col.title || (typeof field === 'string' ? field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '');
-            return {
-                data: field,
-                title: title,
-                className: field === 'id' ? 'editable' : '',
+        if (!Array.isArray(columnsData) || columnsData.length === 0) {
+            console.warn('Nessuna colonna ricevuta dal server o formato non valido.');
+            columnsConfig = []; // Assicura che sia un array vuoto se non ci sono colonne
+        } else {
+            columnsConfig = columnsData.map((col, idx) => ({
+                data: col.field,
+                title: col.title || col.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                className: col.field === 'id' ? 'editable' : 'editable', // Rendi tutte le colonne editabili per ora, o applica logica specifica
                 visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true)
-            };
-        });
+            }));
+        }
+
+        // Distruggi la tabella DataTables esistente se presente
+        if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
+            console.log('[initializeDataTable] Distruzione tabella DataTables esistente.');
+            $('#gestione-gs-table').DataTable().destroy();
+            $('#gestione-gs-table thead').empty(); // Rimuovi header e footer vecchi
+            $('#gestione-gs-table tfoot').empty();
+            $('#gestione-gs-table tbody').empty(); // Pulisci anche il corpo della tabella
+        }
 
         const headerRow = `<tr>${columnsConfig.map(c => `<th data-col-id="${c.data}">${c.title}</th>`).join('')}</tr>`;
         $('#gestione-gs-table thead').html(headerRow);
-        $('#gestione-gs-table tfoot').html('');
-        // Applico subito le larghezze salvate dopo aver generato l'header
-        loadColumnWidths('#gestione-gs-table');
-        enableColumnResize('#gestione-gs-table');
+        // Non è necessario creare tfoot se non lo usi per filtri per colonna specifici
 
-        table = $('#gestione-gs-table').DataTable({
+        window.table = $('#gestione-gs-table').DataTable({
             processing: true,
             serverSide: true,
             fixedHeader: true,
@@ -314,13 +310,13 @@ async function initializeDataTable() {
                         month_filter: $('#month-filter').val() || '',
                         rtc_filter: $('#rtc-filter').val() || ''
                     };
-                    console.log('AJAX request payload:', payload);
+                    // console.log('AJAX request payload:', payload); // Rimosso per pulizia console
                     return JSON.stringify(payload);
                 },
                 error: handleAjaxError
             },
             columns: columnsConfig,
-            dom: '<"dt-controls-temp d-none"lBf>rtip',
+            dom: '<"dt-controls-temp d-none"lBf>rtip', // 'l' per length, 'B' per buttons, 'f' per filter, 'r' per processing, 't' per table, 'i' per info, 'p' per pagination
             lengthMenu: [[10, 25, 50, 100, 250, -1], [10, 25, 50, 100, 250, "Tutti"]],
             pageLength: 25,
             buttons: [
@@ -328,36 +324,25 @@ async function initializeDataTable() {
                     extend: 'colvis',
                     text: 'Visibilità Colonne',
                     className: 'buttons-colvis',
-                    prefixButtons: [
-                        {
-                            text: 'Seleziona tutto',
-                            action: function (e, dt, node, config) {
-                                dt.columns().visible(true);
-                            }
-                        },
-                        {
-                            text: 'Deseleziona tutto',
-                            action: function (e, dt, node, config) {
-                                dt.columns().visible(false);
-                            }
-                        }
-                    ]
+                    // Non è necessario prefixButtons se non hai funzionalità specifiche lì
                 }
             ],
             language: { url: "/static/i18n/Italian.json" },
-            select: { style: 'single', selector: 'tr' },
+            select: { style: 'single', selector: 'tr' }, // o 'os' per selezione multipla
             drawCallback: function (settings) {
-                console.log('DataTable redrawn.');
+                // console.log('DataTable redrawn (drawCallback).');
+                // Non chiamare updateScrollHeader qui perché è già gestito dall'evento 'draw.dt' agganciato in initComplete
             },
-            createdRow: function (row, data) {
-                $(row).find('td:not(:first-child)').addClass('editable');
+            createdRow: function (row, data, dataIndex) {
+                $(row).find('td').addClass('editable'); // Rendi tutte le celle editabili
                 if (!editModeEnabled) {
                     $(row).find('td.editable').css('cursor', 'not-allowed');
                 }
             },
-            initComplete: function () {
+            initComplete: function (settings, json) {
+                console.log('[initializeDataTable/initComplete] DataTables initComplete eseguito.');
                 const api = this.api();
-                table = api;
+                window.table = api; // Sovrascrive la variabile globale 'table' con l'istanza API di DataTables
 
                 if (visibleColumnsState.length > 0) {
                     api.columns().every(function (idx) {
@@ -365,15 +350,11 @@ async function initializeDataTable() {
                     });
                 }
 
-                const dtLength = $('.dataTables_length');
-                const dtButtons = $('.dt-buttons');
-                const dtFilter = $('.dataTables_filter');
-
-                dtLength.appendTo('#dt-length-container');
-                dtButtons.appendTo('#dt-buttons-container');
-                dtFilter.appendTo('#dt-filter-container');
-
-                $('.dt-controls-temp').remove();
+                // Sposta i controlli DataTables nei contenitori designati
+                $('.dataTables_length').appendTo('#dt-length-container');
+                $('.dt-buttons').appendTo('#dt-buttons-container');
+                $('.dataTables_filter').appendTo('#dt-filter-container');
+                $('.dt-controls-temp').remove(); // Rimuovi il contenitore temporaneo
 
                 $('#dt-filter-container input[type="search"]').attr('placeholder', 'Cerca nella tabella...');
 
@@ -386,95 +367,91 @@ async function initializeDataTable() {
                     const resetBtn = $('<button class="btn btn-warning mb-2 w-100" id="reset-filters-btn" type="button">Azzera tutti i filtri</button>');
                     $('.advanced-filters-header').after(resetBtn);
                     resetBtn.on('click', function () {
-                        // Svuota la ricerca globale
                         $('#generic-search').val('');
-                        // Svuota tutti i campi di input dei filtri
                         $('.column-filter').val('');
-                        // Resetta la tabella
-                        api.search('').columns().search('').draw();
+                        if (window.table) {
+                            window.table.search('').columns().search('').draw();
+                        }
                     });
                 }
 
                 const filtersContainer = $('#column-filters-container');
                 filtersContainer.empty();
-
                 api.columns().every(function () {
                     const column = this;
                     const columnData = column.settings()[0].aoColumns[column.index()].data;
-                    const columnTitle = column.header().textContent;
+                    const columnTitle = $(column.header()).text(); // Usa .text() per ottenere il titolo pulito
 
                     const filterDiv = $(`
                         <div class="filter-item">
-                            <label for="filter-${columnData}">${columnTitle}</label>
+                            <label for="filter-${columnData.replace(/\./g, '-')}">${columnTitle}</label> <!-- Sostituisci . con - per ID validi -->
                             <div class="input-group">
                                 <input type="text" 
                                        class="form-control column-filter" 
-                                       id="filter-${columnData}" 
-                                       data-column="${column.index()}">
+                                       id="filter-${columnData.replace(/\./g, '-')}" 
+                                       data-column-name="${columnData}">
                                 <div class="dropdown-menu"></div>
                             </div>
                         </div>
                     `);
-
                     filtersContainer.append(filterDiv);
-
                     const filterInput = filterDiv.find('.column-filter');
                     const dropdownMenu = filterDiv.find('.dropdown-menu');
-
                     let allValues = [];
                     let lastMonth = '';
                     let lastFilters = '';
 
                     function fetchAndShowDropdown(searchText = '') {
-                        const colName = column.settings()[0].aoColumns[column.index()].data;
+                        const colName = filterInput.data('column-name'); // Usa data-column-name
                         const month = $('#month-filter').val() || '';
-                        const filters = getActiveFilters();
+                        const currentFilters = {}; // Costruisci i filtri attuali per la richiesta
+                        $('.column-filter').each(function() {
+                            const $input = $(this);
+                            const col = $input.data('column-name');
+                            const val = $input.val();
+                            if (val && col !== colName) { // Escludi il filtro della colonna corrente
+                                currentFilters[col] = { value: val, regex: false }; // Semplificato per ora
+                            }
+                        });
+                        const globalSearchVal = $('#generic-search').val();
+                        if (globalSearchVal) {
+                            currentFilters['global_search'] = { value: globalSearchVal, regex: false};
+                        }
 
-                        delete filters[colName];
-                        const filtersStr = encodeURIComponent(JSON.stringify(filters));
+                        const filtersStr = encodeURIComponent(JSON.stringify(currentFilters));
 
-                        if (allValues.length > 0 && lastMonth === month && lastFilters === filtersStr) {
+                        if (allValues.length > 0 && lastMonth === month && lastFilters === filtersStr && !searchText) {
                             showDropdown(allValues, dropdownMenu, filterInput, column, searchText);
                             return;
                         }
-
                         filterInput.data('loading', true);
                         dropdownMenu.empty().append('<li><span class="dropdown-item">Caricamento...</span></li>');
                         dropdownMenu.addClass('show');
-
                         $.ajax({
                             url: `/api/servizi/ge/unique_values`,
                             method: 'GET',
-                            data: {
-                                column: colName,
-                                month: month,
-                                filters: filtersStr
-                            },
+                            data: { column: colName, month: month, filters: filtersStr },
                             success: function (values) {
                                 allValues = values || [];
                                 lastMonth = month;
                                 lastFilters = filtersStr;
                                 showDropdown(allValues, dropdownMenu, filterInput, column, searchText);
                             },
-                            error: function (xhr, status, error) {
-                                dropdownMenu.empty().append('<li><span class="dropdown-item text-danger">Errore nel caricamento dei valori</span></li>');
+                            error: function () {
+                                dropdownMenu.empty().append('<li><span class="dropdown-item text-danger">Errore caricamento</span></li>');
                                 dropdownMenu.addClass('show');
                             },
-                            complete: function () {
-                                filterInput.data('loading', false);
-                            }
+                            complete: function () { filterInput.data('loading', false); }
                         });
                     }
 
                     function showDropdown(values, dropdownMenu, filterInput, column, searchText) {
                         dropdownMenu.empty();
                         const currentSearchText = (searchText || '').toLowerCase().trim();
-
                         const filteredValues = values.filter(v => {
                             const lowerCaseV = (v || '').toString().toLowerCase().trim();
                             return lowerCaseV.includes(currentSearchText);
                         });
-
                         if (filteredValues.length === 0) {
                             dropdownMenu.append('<li><span class="dropdown-item">Nessun risultato</span></li>');
                         } else {
@@ -483,7 +460,7 @@ async function initializeDataTable() {
                                 item.find('span').text(value);
                                 item.on('click', function () {
                                     filterInput.val(value);
-                                    column.search(value).draw();
+                                    column.search('^' + escapeRegex(value) + '$', true, false).draw(); // Ricerca esatta
                                     dropdownMenu.removeClass('show');
                                 });
                                 dropdownMenu.append(item);
@@ -492,21 +469,14 @@ async function initializeDataTable() {
                         dropdownMenu.addClass('show');
                     }
 
-                    filterInput.on('focus', function () {
-                        fetchAndShowDropdown(this.value);
-                    });
-
-                    filterInput.on('blur', function () {
-                        setTimeout(() => {
-                            dropdownMenu.removeClass('show');
-                        }, 200);
-                    });
-
-                    filterInput.on('click', function (e) {
-                        fetchAndShowDropdown(this.value);
-                    });
+                    filterInput.on('focus', function () { fetchAndShowDropdown(this.value); });
+                    filterInput.on('blur', function () { setTimeout(() => { dropdownMenu.removeClass('show'); }, 200); });
+                    filterInput.on('click', function (e) { fetchAndShowDropdown(this.value); });
                     filterInput.on('keyup', function (e) {
-                        if (!this.value) {
+                        if (e.key === 'Enter') {
+                            column.search('^' + escapeRegex(this.value) + '$', true, false).draw();
+                            dropdownMenu.removeClass('show');
+                        } else if (!this.value) {
                             column.search('').draw();
                             dropdownMenu.removeClass('show');
                         } else {
@@ -515,188 +485,196 @@ async function initializeDataTable() {
                     });
                 });
 
-                $('.filter-values').on('click', function (e) {
-                    e.stopPropagation();
-                });
-
-                $('#loading-indicator').hide();
-                $('#gestione-gs-table').show();
-
-                api.on('select', function (e, dt, type, indexes) {
-                    if (type === 'row') {
-                        const rowData = api.rows(indexes).data().toArray();
-                        const rowElement = api.row(indexes).node();
-                    }
-                });
-
-                api.on('deselect', function (e, dt, type, indexes) {
-                    if (type === 'row') {
-                        const rowData = api.rows(indexes).data().toArray();
-                        const rowElement = api.row(indexes).node();
-                    }
-                });
+                // Aggancia l'evento draw.dt all'API di DataTables per aggiornare lo scroll orizzontale
+                if (api && typeof api.on === 'function') {
+                    console.log('[initializeDataTable/initComplete] Agganciando evento draw.dt a DataTables API (api) per scroll.');
+                    api.on('draw.dt', function() {
+                        console.log('[initializeDataTable/initComplete] Evento draw.dt di DataTables scatenato (per scroll).');
+                        const scrollHeaderJQ = $('.table-scroll-header'); 
+                        const tableWrapperJQ = $('.table-wrapper-fix');
+                        const gestioneGsTableJQ = $('#gestione-gs-table');
+                        if(gestioneGsTableJQ.length && gestioneGsTableJQ[0] && scrollHeaderJQ.length && tableWrapperJQ.length){
+                            const tableElement = gestioneGsTableJQ[0];
+                            const tableWidth = gestioneGsTableJQ.outerWidth(); // Larghezza visibile dell'elemento tabella
+                            const scrollWidth = tableElement.scrollWidth; // Larghezza totale del contenuto scrollabile
+                            console.log('[draw.dt - scrollHandler] Valori: table.outerWidth():', tableWidth, '| tableElement.scrollWidth:', scrollWidth);
+                            $('.table-scroll-header-inner').css('width', scrollWidth + 'px');
+                            if (scrollWidth > tableWidth && tableWidth > 0) {
+                                console.log('[draw.dt - scrollHandler] -> Mostrando scrollHeader.');
+                                scrollHeaderJQ.css('display', 'block');
+                            } else {
+                                console.log('[draw.dt - scrollHandler] -> Nascondendo scrollHeader.');
+                                scrollHeaderJQ.css('display', 'none');
+                            }
+                        }
+                    });
+                } else {
+                    console.error('[initializeDataTable/initComplete] ERRORE: API DataTables (api) non è valida o manca il metodo .on() per agganciare draw.dt per lo scroll.');
+                }
 
                 // Applica la visibilità di default delle colonne in base al backend
-                table.columns().every(function (idx) {
+                // Questo deve usare l'istanza 'api' o 'window.table' corretta
+                window.table.columns().every(function (idx) { 
                     const colDef = columnsConfig[idx];
                     if (typeof colDef.visible === 'boolean') {
-                        table.column(idx).visible(colDef.visible);
+                        window.table.column(idx).visible(colDef.visible);
                     }
                 });
+
+                // Chiamata finale per assicurare che lo stato iniziale sia corretto
+                if (typeof syncHorizontalScroll === 'function') {
+                    syncHorizontalScroll(); // Assicura che syncHorizontalScroll sia chiamata dopo che la tabella è completamente pronta
+                }
             }
         });
 
-        table.on('draw', function () {
-            const info = table.page.info();
+        // Evento per aggiornare il conteggio dei record (già presente e sembra corretto)
+        $('#gestione-gs-table').on('draw.dt', function () {
+            const info = $(this).DataTable().page.info(); // Usa $(this).DataTable() per ottenere l'istanza API corretta
             const countText = `Vista da ${info.start + 1} a ${info.end} di ${info.recordsDisplay} elementi (filtrati da ${info.recordsTotal} totali)`;
             $('#record-count').text(countText);
         });
 
         $('#gestione-gs-table').off('click', 'td.editable').on('click', 'td.editable', function () {
             if (!editModeEnabled) {
-                const cell = table.cell(this);
+                const cell = window.table.cell(this); // Usa window.table (API)
                 const originalBg = cell.node().style.backgroundColor;
                 cell.node().style.backgroundColor = '#ffebee';
                 setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
                 return;
             }
 
-            const cell = table.cell(this);
+            const cell = window.table.cell(this); // Usa window.table (API)
             const column = cell.index().column;
             const row = cell.index().row;
             const data = cell.data();
-            const rowData = table.row(row).data();
-            const columnName = table.settings()[0].aoColumns[column].data;
+            const rowData = window.table.row(row).data(); // Usa window.table (API)
+            const columnName = window.table.settings()[0].aoColumns[column].data; // Usa window.table (API)
 
             const input = $('<input>')
                 .attr('type', 'text')
                 .addClass('form-control form-control-sm')
                 .val(data)
-                .css({
-                    'width': '100%',
-                    'height': '100%',
-                    'border': '1px solid #ddd',
-                    'padding': '0.25rem',
-                    'box-sizing': 'border-box',
-                    'background-color': '#fff'
-                });
+                .css({ 'width': '100%', 'height': '100%', 'border': '1px solid #ddd', 'padding': '0.25rem', 'box-sizing': 'border-box', 'background-color': '#fff' });
 
-            // Assicuriamoci che la cella abbia position: relative
             $(cell.node()).css('position', 'relative');
-
-            input.on('click', function (e) {
-                e.stopPropagation();
-            });
+            input.on('click', function (e) { e.stopPropagation(); });
 
             input.off('blur keypress').on('blur keypress', function (e) {
                 if (e.type === 'keypress' && e.which !== 13) return;
-
                 const newValue = $(this).val();
-                // Se il valore non è cambiato, chiudi l'input senza fare update e senza draw!
                 if (newValue === data) {
                     $(cell.node()).empty().text(data);
                     return;
                 }
-
-                // Solo se il valore è cambiato, fai la chiamata al server
                 fetch('/api/servizi/ge/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        pk: rowData.ID,
-                        field: columnName,
-                        value: newValue
-                    })
+                    body: JSON.stringify({ pk: rowData.ID, field: columnName, value: newValue })
                 })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Errore nella risposta del server');
-                        return response.json();
-                    })
-                    .then(result => {
-                        if (result.status === 'success') {
-                            $(cell.node()).empty();
-                            cell.data(newValue).draw();
-                        } else {
-                            throw new Error(result.message || 'Errore durante l\'aggiornamento');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Errore:', error);
+                .then(response => {
+                    if (!response.ok) throw new Error('Errore nella risposta del server');
+                    return response.json();
+                })
+                .then(result => {
+                    if (result.status === 'success') {
                         $(cell.node()).empty();
-                        cell.data(data).draw();
-                        if (error.message !== 'Errore nella risposta del server') {
-                            alert(error.message);
-                        }
-                    });
+                        cell.data(newValue).draw(false); // Usa draw(false) per non resettare la paginazione
+                    } else {
+                        throw new Error(result.message || 'Errore durante l\'aggiornamento');
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    $(cell.node()).empty();
+                    cell.data(data).draw(false); // Ripristina e ridisegna senza resettare la paginazione
+                    if (error.message !== 'Errore nella risposta del server') {
+                        alert(error.message);
+                    }
+                });
             });
-
             $(cell.node()).html(input);
             input.focus();
         });
     } catch (error) {
         handleError(error, 'Errore durante il caricamento della tabella');
+    } finally {
+        // Nascondi l'indicatore di caricamento se esiste
+        const loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        const tableElement = $('#gestione-gs-table');
+        if (tableElement.length) tableElement.show(); // Mostra la tabella
     }
 }
 
 function syncHorizontalScroll() {
     const tableWrapper = $('.table-wrapper-fix');
     const scrollHeader = $('.table-scroll-header');
-    const table = $('#gestione-gs-table');
+    const tablejQuery = $('#gestione-gs-table'); // Riferimento jQuery all'elemento tabella
     
-    if (!tableWrapper.length || !scrollHeader.length || !table.length) return;
+    if (!tableWrapper.length) {
+        console.error('[syncHorizontalScroll] Elemento .table-wrapper-fix non trovato.');
+        return;
+    }
+    if (!scrollHeader.length) {
+        console.error('[syncHorizontalScroll] Elemento .table-scroll-header non trovato.');
+        return;
+    }
+    if (!tablejQuery.length) {
+        console.error('[syncHorizontalScroll] Elemento #gestione-gs-table non trovato.');
+        return;
+    }
     
-    // Funzione per aggiornare la larghezza dell'header di scroll
-    function updateScrollHeader() {
-        const tableWidth = table.outerWidth();
-        const scrollWidth = table[0].scrollWidth;
+    // Funzione per aggiornare la visibilità e larghezza dello scroll header
+    // Questa funzione ora è definita qui e può essere chiamata da diversi posti.
+    window.updateCustomScrollHeader = function() { // Esponila globalmente o passala come callback se preferisci
+        if (!tablejQuery.length || !tablejQuery[0]) { 
+            console.error('[updateCustomScrollHeader] Elemento DOM della tabella #gestione-gs-table non trovato tramite jQuery.');
+            return;
+        }
+        const tableElement = tablejQuery[0]; 
+        const tableOuterWidth = tablejQuery.outerWidth(); 
+        const tableScrollWidth = tableElement.scrollWidth; 
         
-        // Imposta la larghezza dell'header di scroll
-        $('.table-scroll-header-inner').css('width', scrollWidth + 'px');
+        console.log('[updateCustomScrollHeader] --- ESEGUITA ---');
+        console.log('[updateCustomScrollHeader] Valori: tablejQuery.outerWidth():', tableOuterWidth, '| tableElement.scrollWidth:', tableScrollWidth);
         
-        // Mostra/nascondi la barra di scorrimento in base alla necessità
-        if (scrollWidth > tableWidth) {
+        $('.table-scroll-header-inner').css('width', tableScrollWidth + 'px');
+        
+        if (tableScrollWidth > tableOuterWidth && tableOuterWidth > 0) { 
+            console.log('[updateCustomScrollHeader] -> Mostrando scrollHeader.');
             scrollHeader.css('display', 'block');
         } else {
+            console.log('[updateCustomScrollHeader] -> Nascondendo scrollHeader (scrollWidth <= tableWidth o tableWidth == 0).');
             scrollHeader.css('display', 'none');
         }
     }
     
-    // Aggiorna la larghezza quando la tabella viene ridimensionata
-    $(window).on('resize', updateScrollHeader);
+    console.log('[syncHorizontalScroll] Event listener per window resize aggiunto.');
+    $(window).on('resize', window.updateCustomScrollHeader);
     
-    // Sincronizza lo scroll orizzontale
+    console.log('[syncHorizontalScroll] Event listener per tableWrapper scroll aggiunto.');
     tableWrapper.on('scroll', function() {
-        const scrollLeft = $(this).scrollLeft();
-        scrollHeader.scrollLeft(scrollLeft);
+        scrollHeader.scrollLeft($(this).scrollLeft());
     });
     
-    // Sincronizza anche nel senso inverso (se l'utente scorre l'header)
+    console.log('[syncHorizontalScroll] Event listener per scrollHeader scroll aggiunto.');
     scrollHeader.on('scroll', function() {
-        const scrollLeft = $(this).scrollLeft();
-        tableWrapper.scrollLeft(scrollLeft);
+        tableWrapper.scrollLeft($(this).scrollLeft());
     });
-    
-    // Aggiorna la larghezza dopo l'inizializzazione di DataTables
-    if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
-        const dataTable = $('#gestione-gs-table').DataTable();
-        dataTable.on('draw.dt', function() {
-            setTimeout(updateScrollHeader, 0);
-        });
-    }
-    
-    // Esegui l'aggiornamento iniziale
-    setTimeout(updateScrollHeader, 100);
-    
+        
+    console.log('[syncHorizontalScroll] Chiamata iniziale a updateCustomScrollHeader (dopo 100ms).');
+    setTimeout(window.updateCustomScrollHeader, 100); 
 }
 
 async function initializeGestioneGSControls() {
-    console.log('TEST: initializeGestioneGSControls CHIAMATA ORA!'); // <-- RIGA AGGIUNTA PER TEST
+    console.log('TEST: initializeGestioneGSControls CHIAMATA ORA!');
     console.log('Inizializzazione controlli GS...');
     
-    // Inizializza la tabella
-    initializeDataTable();
+    // Inizializza la tabella. La variabile globale 'table' (DataTables API) sarà impostata qui.
+    await initializeDataTable(); 
     
-    // Sincronizza lo scroll orizzontale
+    // Sincronizza lo scroll orizzontale. Ora può usare l'API di DataTables se necessario.
     syncHorizontalScroll();
 
     const monthFilter = document.getElementById('month-filter');
@@ -705,10 +683,7 @@ async function initializeGestioneGSControls() {
         return;
     }
 
-    // Inizializza il toggle di modifica
     initializeToggle();
-
-    // Aggiungo sempre il pulsante modalità colonne accanto a modifica attiva
     addColumnViewModeButton();
 
     if (monthFilter.options.length <= 1) {
@@ -723,40 +698,44 @@ async function initializeGestioneGSControls() {
         }
     }
 
-    $('#month-filter').off('change').on('change', function () {
+    $('#month-filter').off('change').on('change', async function () {
         const selectedMonth = $(this).val();
         console.log('Month filter changed. Selected month:', selectedMonth);
 
-        $('#gestione-gs-table').hide();
-        $('#loading-indicator').show();
+        // Mostra l'indicatore di caricamento se esiste
+        const loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
+        const tableElement = $('#gestione-gs-table');
+        if (tableElement.length) tableElement.hide();
 
         if (!selectedMonth) {
             console.log('No month selected. Clearing table if exists.');
-            if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
-                table.clear().draw();
+            if ($.fn.DataTable.isDataTable('#gestione-gs-table') && window.table) {
+                window.table.clear().draw();
             }
-            $('#loading-indicator').hide();
-            $('#gestione-gs-table').show();
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+            if (tableElement.length) tableElement.show();
             return;
         }
 
-        if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
+        if ($.fn.DataTable.isDataTable('#gestione-gs-table') && window.table) {
             console.log('DataTable already initialized. Reloading data.');
-            table.ajax.reload(function () {
-                $('#loading-indicator').hide();
-                $('#gestione-gs-table').show();
+            // L'evento 'draw.dt' gestirà l'aggiornamento dello scroll header
+            window.table.ajax.reload(() => {
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                if (tableElement.length) tableElement.show();
             });
         } else {
             console.log('DataTable not initialized. Initializing table.');
-            initializeDataTable();
+            await initializeDataTable(); // Questo ora gestirà anche l'aggiornamento dello scroll header tramite initComplete/draw.dt
         }
         aggiornaFiltroRTC();
     });
 
     $('#generic-search').off('keyup').on('keyup', function (e) {
         if (e.key === 'Enter' || this.value === '') {
-            if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
-                $('#gestione-gs-table').DataTable().search(this.value).draw();
+            if (window.table) { // Usa window.table (API)
+                window.table.search(this.value).draw();
                 aggiornaFiltroRTC();
             }
         }
@@ -773,80 +752,99 @@ async function initializeGestioneGSControls() {
     });
 
     $('#rtc-filter').off('change').on('change', function () {
-        if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
-            $('#gestione-gs-table').DataTable().ajax.reload();
+        if (window.table) { // Usa window.table (API)
+            window.table.ajax.reload();
         }
     });
 
-    // Inizializza la tabella se non è già inizializzata
-    if (!$.fn.DataTable.isDataTable('#gestione-gs-table')) {
-        await initializeDataTable();
-    }
+    // Rimosso: if (!$.fn.DataTable.isDataTable('#gestione-gs-table')) { await initializeDataTable(); }
+    // perché initializeDataTable() è già chiamata all'inizio di initializeGestioneGSControls.
 
-    // Collega il pulsante esporta excel
     $('#exportBtn').off('click').on('click', handleExport);
 }
 
-// Dopo l'inizializzazione della DataTable, blocca la ricerca in tempo reale e abilita solo su invio
 function patchRicercaSoloInvio() {
-    // Trova il campo ricerca DataTables
     var $input = $('#dt-filter-container input[type="search"]');
     if ($input.length) {
-        $input.off('input keyup');
+        $input.off('input keyup'); // Rimuovi handler precedenti
         $input.on('keyup', function (e) {
             if (e.key === 'Enter') {
-                var table = $('#gestione-gs-table').DataTable();
-                table.search(this.value).draw();
+                if (window.table) {
+                    window.table.search(this.value).draw();
+                }
             }
         });
     }
 }
 
-// Applica la patch dopo ogni init della tabella
-$(document).on('init.dt', function () {
-    patchRicercaSoloInvio();
+$(document).on('init.dt', function(e, settings) {
+    if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
+        console.log('[document/init.dt] Evento init.dt per #gestione-gs-table scatenato.');
+        patchRicercaSoloInvio();
+        afterDataTableInit(); // Chiamata qui per assicurare che la tabella sia pronta
+    }
 });
 
-// Nascondi tutte le info, mostra solo quella DOPO la tabella (sotto)
-$(document).on('draw.dt', function () {
-    $('.dataTables_info').hide();
-    $('#gestione-gs-table').parent().nextAll('.dataTables_info').first().show();
-    const tdCount = document.querySelectorAll('#gestione-gs-table td').length;
-    console.debug('[TOOLTIP DEBUG] Numero di <td> nella tabella:', tdCount);
+$(document).on('draw.dt', function(e, settings) {
+    if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
+        // La logica per lo scrollbar è ora dentro initComplete e si auto-aggiorna con draw.dt
+        // La logica per il conteggio record è già in table.on('draw', ...)
+        // La logica per applyColumnViewMode è già qui
+
+        // Rimuovo i log duplicati o non necessari da qui per pulizia
+        // console.debug('[TOOLTIP DEBUG] Numero di <td> nella tabella:', $(settings.nTable).find('td').length);
+
+        // Gestione info DataTables (già presente e sembra ok)
+        const $wrapper = $(settings.nTable).closest('.dataTables_wrapper');
+        $wrapper.find('.dataTables_info').hide();
+        $wrapper.find('.dataTables_info:last-of-type').show(); 
+
+        // Gestione paginazione (già presente)
+        const $paginate = $wrapper.find('.dataTables_paginate');
+        const $scrollWrapper = $('.table-wrapper-fix'); // Assicurati che questo sia il contenitore corretto
+        if ($paginate.length && $scrollWrapper.length) {
+            $scrollWrapper.append($paginate); // Questo sposta la paginazione sotto la tabella scrollabile
+        }
+
+        // Gestione modalità colonne (già presente)
+        applyColumnViewMode('#gestione-gs-table');
+        const switchInput = document.getElementById('toggle-column-view-mode');
+        if (switchInput) {
+            switchInput.checked = (columnViewMode === 'fixedwrap');
+            const label = switchInput.parentElement.querySelector('label');
+            if (label) {
+                label.textContent = columnViewMode === 'fixedwrap' ? 'Colonne tutte uguali' : 'Colonne autosize';
+            }
+        }
+    }
 });
 
-// Listener globale per ESC: resetta tutti i filtri tranne il mese
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-        // Reset filtro RTC
         const rtcFilter = document.getElementById('rtc-filter');
         if (rtcFilter) {
             rtcFilter.value = '';
             rtcFilter.dispatchEvent(new Event('change'));
         }
-        // Reset ricerca generica
         const searchInput = document.getElementById('generic-search');
         if (searchInput) {
             searchInput.value = '';
         }
-        // Reset filtri DataTables (se presenti)
-        if (window.$ && $.fn.DataTable && table) {
-            table.search('').columns().search('').draw();
+        if (window.table) {
+            window.table.search('').columns().search('').draw();
         }
-        // Reset filtri avanzati custom (se presenti)
         document.querySelectorAll('.column-filter').forEach(input => input.value = '');
+        $('#advanced-filters-panel').removeClass('show');
+        $('.advanced-filters-overlay').removeClass('show');
     }
 });
-
-// === GESTIONE RESIZE COLONNE E TOOLTIP CELLE (PERSISTENTE) ===
 
 const COLUMN_WIDTHS_KEY = 'gsTableColWidths';
 
 function saveColumnWidths(tableSelector) {
-    const table = document.querySelector(tableSelector);
-    if (!table) return;
-    const thEls = table.querySelectorAll('th');
-    // Salva come oggetto {colId: width}
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) return;
+    const thEls = tableEl.querySelectorAll('thead th');
     const widths = {};
     thEls.forEach(th => {
         const colId = th.getAttribute('data-col-id');
@@ -856,150 +854,117 @@ function saveColumnWidths(tableSelector) {
 }
 
 function loadColumnWidths(tableSelector) {
-    const table = document.querySelector(tableSelector);
-    if (!table) return;
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) return;
     const widths = JSON.parse(localStorage.getItem(COLUMN_WIDTHS_KEY) || '{}');
     if (!widths || typeof widths !== 'object') return;
-    const thEls = table.querySelectorAll('th');
-    // Per ogni colId salvato, trova la posizione attuale e applica la larghezza
+    const thEls = tableEl.querySelectorAll('thead th');
     Object.entries(widths).forEach(([colId, width]) => {
-        // Trova la posizione attuale della colonna con quel data-col-id
         const th = Array.from(thEls).find(th => th.getAttribute('data-col-id') === colId);
         if (!th) return;
-        th.style.width = width + 'px';
-        th.style.minWidth = width + 'px';
-        th.style.maxWidth = width + 'px';
-        // Trova l'indice attuale di questa colonna
-        const colIdx = Array.from(thEls).indexOf(th);
-        // Applica la larghezza a tutte le celle di quella colonna
-        table.querySelectorAll('tr').forEach(tr => {
-            const cell = tr.children[colIdx];
-            if (cell) {
-                cell.style.width = width + 'px';
-                cell.style.minWidth = width + 'px';
-                cell.style.maxWidth = width + 'px';
-            }
-        });
+        const colIdx = Array.from(th.parentNode.children).indexOf(th);
+        if (colIdx !== -1) {
+            // Applica solo a th, DataTables gestirà le celle del corpo
+            th.style.width = width + 'px';
+            th.style.minWidth = width + 'px';
+            th.style.maxWidth = width + 'px';
+        }
     });
 }
 
 function enableColumnResize(tableSelector) {
-    const table = document.querySelector(tableSelector);
-    if (!table) return;
-    const thEls = table.querySelectorAll('th');
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) return;
+    const thEls = tableEl.querySelectorAll('thead th');
     thEls.forEach((th) => {
         const colId = th.getAttribute('data-col-id');
-        if (!colId) return;
+        if (!colId || th.querySelector('.col-resizer')) return; // Evita di aggiungere più volte
+        
         th.style.position = 'relative';
-        // Aggiungi il manico per il resize
         const resizer = document.createElement('div');
         resizer.className = 'col-resizer';
         resizer.style.position = 'absolute';
-        resizer.style.top = 0;
-        resizer.style.right = 0;
+        resizer.style.top = '0';
+        resizer.style.right = '-3px'; // Posiziona leggermente fuori per facilitare il click
         resizer.style.width = '6px';
         resizer.style.height = '100%';
         resizer.style.cursor = 'col-resize';
         resizer.style.userSelect = 'none';
-        resizer.style.zIndex = 10;
+        resizer.style.zIndex = '10'; // Assicura che sia sopra altri elementi della cella
         th.appendChild(resizer);
+
         let startX, startWidth;
-        let resizing = false;
+        const onMouseMove = (e2) => {
+            const newWidth = Math.max(40, startWidth + (e2.pageX - startX));
+            th.style.width = newWidth + 'px';
+            th.style.minWidth = newWidth + 'px';
+            th.style.maxWidth = newWidth + 'px';
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = '';
+            tableEl.classList.remove('resizing-columns');
+            // tableEl.style.pointerEvents = ''; // Rimosso, causava problemi
+            saveColumnWidths(tableSelector);
+            if (window.table) {
+                window.table.columns.adjust().draw(false); // Ridisegna senza resettare la paginazione
+            }
+        };
+
         resizer.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             startX = e.pageX;
             startWidth = th.offsetWidth;
-            resizing = true;
             document.body.style.cursor = 'col-resize';
-            table.classList.add('resizing-columns');
-            table.style.pointerEvents = 'none';
-            function preventDT(e) {
-                e.stopPropagation();
-                e.preventDefault();
-            }
-            th.addEventListener('click', preventDT, true);
-            th.addEventListener('mousedown', preventDT, true);
-            function onMouseMove(e2) {
-                const newWidth = Math.max(40, startWidth + (e2.pageX - startX));
-                th.style.width = newWidth + 'px';
-                th.style.minWidth = newWidth + 'px';
-                th.style.maxWidth = newWidth + 'px';
-                // Applica anche alle celle della colonna con lo stesso data-col-id
-                const colIdx = Array.from(table.querySelectorAll('th')).findIndex(h => h.getAttribute('data-col-id') === colId);
-                table.querySelectorAll('tr').forEach(tr => {
-                    const cell = tr.children[colIdx];
-                    if (cell) {
-                        cell.style.width = newWidth + 'px';
-                        cell.style.minWidth = newWidth + 'px';
-                        cell.style.maxWidth = newWidth + 'px';
-                    }
-                });
-            }
-            function onMouseUp() {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-                document.body.style.cursor = '';
-                resizing = false;
-                table.classList.remove('resizing-columns');
-                table.style.pointerEvents = '';
-                th.removeEventListener('click', preventDT, true);
-                th.removeEventListener('mousedown', preventDT, true);
-                saveColumnWidths(tableSelector);
-            }
+            tableEl.classList.add('resizing-columns');
+            // tableEl.style.pointerEvents = 'none'; // Rimosso, causava problemi
             document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('mouseup', onMouseUp, { once: true });
         });
     });
 }
 
-// === GESTIONE MODALITÀ VISUALIZZAZIONE COLONNE ===
-
 function setColumnsAutosize(tableSelector) {
-    const table = document.querySelector(tableSelector);
-    if (!table) return;
-    const thEls = table.querySelectorAll('th');
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) return;
+    const thEls = tableEl.querySelectorAll('thead th');
     thEls.forEach(th => {
-        th.style.width = '';
-        th.style.minWidth = '';
+        th.style.width = ''; 
+        th.style.minWidth = ''; 
         th.style.maxWidth = '';
     });
-    table.querySelectorAll('tr').forEach(tr => {
-        Array.from(tr.children).forEach(cell => {
-            cell.style.width = '';
-            cell.style.minWidth = '';
-            cell.style.maxWidth = '';
-            cell.style.whiteSpace = 'nowrap';
-            cell.style.textOverflow = 'ellipsis';
-            cell.style.overflow = 'hidden';
-        });
-    });
+    // DataTables dovrebbe ridisegnare le colonne automaticamente, ma forziamo un aggiustamento
+    if (window.table) {
+        window.table.columns.adjust().draw(false);
+    }
+    // Non è necessario iterare sulle celle del corpo per resettare gli stili, DataTables lo gestisce
 }
 
 function setColumnsFixedWrap(tableSelector) {
-    const table = document.querySelector(tableSelector);
-    if (!table) return;
-    const thEls = table.querySelectorAll('th');
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) return;
+    const thEls = tableEl.querySelectorAll('thead th');
     thEls.forEach(th => {
-        th.style.width = '150px';
-        th.style.minWidth = '150px';
+        th.style.width = '150px'; 
+        th.style.minWidth = '150px'; 
         th.style.maxWidth = '150px';
+        // Per il wrapping, DataTables dovrebbe gestire questo tramite CSS sulla tabella o sulle celle
+        // Ma se necessario, si può aggiungere qui:
+        // th.style.whiteSpace = 'normal'; 
     });
-    table.querySelectorAll('tr').forEach(tr => {
-        Array.from(tr.children).forEach(cell => {
-            cell.style.width = '150px';
-            cell.style.minWidth = '150px';
-            cell.style.maxWidth = '150px';
-            cell.style.whiteSpace = 'normal';
-            cell.style.textOverflow = 'clip';
-            cell.style.overflow = 'visible';
-        });
-    });
+    // Applica anche alle celle del corpo se necessario, ma DataTables dovrebbe farlo
+    if (window.table) {
+        window.table.columns.adjust().draw(false);
+    }
 }
 
 function applyColumnViewMode(tableSelector) {
-    // Salva la posizione di scroll orizzontale
-    const table = document.querySelector(tableSelector);
-    if (!table) return;
-    const tableWrapper = table.closest('.dataTables_wrapper') || table.parentElement;
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) return;
+    const tableWrapper = tableEl.closest('.dataTables_scrollBody') || tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
     const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
 
     if (columnViewMode === 'autosize') {
@@ -1008,50 +973,94 @@ function applyColumnViewMode(tableSelector) {
         setColumnsFixedWrap(tableSelector);
     }
 
-    // Ripristina la posizione di scroll orizzontale
     if (tableWrapper) {
-        tableWrapper.scrollLeft = scrollLeft;
+        // Ripristina la posizione di scroll dopo un breve ritardo per permettere il ridisegno
+        setTimeout(() => { tableWrapper.scrollLeft = scrollLeft; }, 0);
     }
 }
 
-// Pulsante per cambiare modalità visualizzazione colonne
 function addColumnViewModeButton() {
     if ($('#toggle-column-view-mode').length) return;
-    // Creo uno switch identico a 'Modifica attiva'
     const switchHtml = `
         <div class="form-check form-switch d-inline-flex align-items-center ms-2" id="column-view-mode-switch-wrapper">
             <input class="form-check-input" type="checkbox" id="toggle-column-view-mode">
             <label class="form-check-label small ms-1" for="toggle-column-view-mode">Colonne autosize</label>
         </div>`;
     const $switch = $(switchHtml);
-    $('#toggle-edit-mode').parent().after($switch);
-    $switch.find('input').on('change', function () {
+    const $editModeToggle = $('#toggle-edit-mode').parent();
+    if ($editModeToggle.length) {
+        $editModeToggle.after($switch);
+    } else {
+        // Fallback se il toggle di modifica non è presente
+        $('#dt-buttons-container').before($switch);
+    }
+    
+    const toggleInput = $switch.find('input');
+    const toggleLabel = $switch.find('label');
+
+    // Imposta lo stato iniziale dello switch in base a columnViewMode
+    if (columnViewMode === 'fixedwrap') {
+        toggleInput.prop('checked', true);
+        toggleLabel.text('Colonne tutte uguali');
+    } else {
+        toggleInput.prop('checked', false);
+        toggleLabel.text('Colonne autosize');
+    }
+
+    toggleInput.on('change', function () {
         if (this.checked) {
             columnViewMode = 'fixedwrap';
-            $switch.find('label').text('Colonne tutte uguali');
+            toggleLabel.text('Colonne tutte uguali');
         } else {
             columnViewMode = 'autosize';
-            $switch.find('label').text('Colonne autosize');
+            toggleLabel.text('Colonne autosize');
         }
         applyColumnViewMode('#gestione-gs-table');
     });
 }
 
-// Modifica afterDataTableInit per applicare la modalità di visualizzazione corrente
 function afterDataTableInit() {
-    applyCellOverflowStyles('#gestione-gs-table');
+    console.log('[afterDataTableInit] Chiamata.');
+    // applyCellOverflowStyles('#gestione-gs-table'); // Funzione non definita, commentata
     enableColumnResize('#gestione-gs-table');
-    enableCellTooltip('#gestione-gs-table');
+    // enableCellTooltip('#gestione-gs-table'); // Funzione non definita, commentata
     loadColumnWidths('#gestione-gs-table');
     applyColumnViewMode('#gestione-gs-table');
     addColumnViewModeButton();
 }
 
-// Dopo ogni draw della DataTable, applico sempre la modalità colonne scelta
-$(document).on('draw.dt', function (e, settings) {
+// Evento init.dt di DataTables: viene chiamato una volta che la tabella è completamente inizializzata
+$(document).on('init.dt', function(e, settings) {
     if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
-        applyColumnViewMode('#gestione-gs-table');
-        // Aggiorno lo switch per coerenza visiva
+        console.log('[document/init.dt] Evento init.dt per #gestione-gs-table scatenato.');
+        patchRicercaSoloInvio();
+        afterDataTableInit(); 
+    }
+});
+
+// Evento draw.dt di DataTables: viene chiamato ad ogni ridisegno della tabella
+$(document).on('draw.dt', function(e, settings) {
+    if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
+        // La logica per lo scrollbar è ora gestita DENTRO initComplete, agganciata all'evento draw.dt dell'API DataTables
+        // Questo handler $(document).on('draw.dt'...) è per eventi jQuery generici, non specifici dell'istanza DataTables
+        // Quindi, la logica di update dello scrollbar qui potrebbe essere ridondante o conflittuale se non gestita attentamente.
+        // È meglio che updateScrollHeader sia chiamata dall'handler specifico dell'istanza DataTables.
+
+        // Gestione info DataTables
+        const $wrapper = $(settings.nTable).closest('.dataTables_wrapper');
+        $wrapper.find('.dataTables_info').hide();
+        $wrapper.find('.dataTables_info:last-of-type').show(); 
+
+        // Gestione paginazione
+        const $paginate = $wrapper.find('.dataTables_paginate');
+        const $tableWrapperFix = $('.table-wrapper-fix'); // Usiamo la classe definita per il contenitore scrollabile
+        if ($paginate.length && $tableWrapperFix.length) {
+            // Invece di spostare la paginazione, assicuriamoci che sia visibile e stilizzata correttamente
+            // $tableWrapperFix.append($paginate); // Questa riga è stata commentata perché potrebbe causare problemi di layout
+        }
+
+        // Gestione modalità colonne
+        applyColumnViewMode('#gestione-gs-table'); // Assicura che la modalità colonne sia applicata dopo ogni disegno
         const switchInput = document.getElementById('toggle-column-view-mode');
         if (switchInput) {
             switchInput.checked = (columnViewMode === 'fixedwrap');
@@ -1060,11 +1069,28 @@ $(document).on('draw.dt', function (e, settings) {
                 label.textContent = columnViewMode === 'fixedwrap' ? 'Colonne tutte uguali' : 'Colonne autosize';
             }
         }
-        // Sposto la paginazione dentro il wrapper scrollabile
-        var $paginate = $('.dataTables_paginate');
-        var $scrollWrapper = $('.table-wrapper-fix');
-        if ($paginate.length && $scrollWrapper.length) {
-            $scrollWrapper.append($paginate);
+    }
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        const rtcFilter = document.getElementById('rtc-filter');
+        if (rtcFilter) {
+            rtcFilter.value = '';
+            // Disparare un evento 'change' per far reagire DataTables se necessario
+            $(rtcFilter).trigger('change'); 
         }
+        const searchInput = document.getElementById('generic-search');
+        if (searchInput) {
+            searchInput.value = '';
+            // Disparare un evento 'keyup' o 'change' per far reagire DataTables se necessario
+             if (window.table) { window.table.search('').draw(); } 
+        }
+        document.querySelectorAll('.column-filter').forEach(input => {
+            $(input).val('').trigger('keyup'); // Simula un keyup per far scattare il filtro DataTables
+        });
+        $('#advanced-filters-panel').removeClass('show');
+        $('.advanced-filters-overlay').removeClass('show');
+        // Non è necessario ridisegnare esplicitamente la tabella qui se i filtri lo fanno già
     }
 });
