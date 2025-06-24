@@ -690,6 +690,7 @@ function syncHorizontalScroll() {
 }
 
 async function initializeGestioneGSControls() {
+    console.log('TEST: initializeGestioneGSControls CHIAMATA ORA!'); // <-- RIGA AGGIUNTA PER TEST
     console.log('Inizializzazione controlli GS...');
     
     // Inizializza la tabella

@@ -73,7 +73,7 @@ body.sidebar-collapsed .main-content {
     margin-bottom: 2rem;
     /* Assicura che la tabella abbia una larghezza minima per lo scroll orizzontale */
     min-height: 0.01%;
-    overflow-x: auto;
+    overflow-x: auto; /* Questa riga è duplicata ma non dannosa */
 }
 
 /* Stile per l'header dello scroll orizzontale */
@@ -93,7 +93,7 @@ body.sidebar-collapsed .main-content {
     min-width: 100%;
 }
 
-/* Stile per il contenitore della tabella */
+/* Stile per il contenitore della tabella (duplicato da sopra, ma manteniamo per coerenza con l'originale) */
 .table-wrapper-fix {
     width: 100%;
     overflow-x: auto;
