@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (url.includes('ordini_servizi')) {
             await new Promise((resolve, reject) => {
               const script = document.createElement('script');
-              script.src = '/static/js/ordini_servizi.js';
+              script.src = '/static/js/ordini_servizi_ge.js';
               script.setAttribute('data-page-script', 'true');
               script.onload = () => {
                 // Forza l'inizializzazione dopo il caricamento dello script

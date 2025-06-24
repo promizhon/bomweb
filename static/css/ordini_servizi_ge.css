@@ -71,6 +71,41 @@ body.sidebar-collapsed .main-content {
     position: relative;
     z-index: 1;
     margin-bottom: 2rem;
+    /* Assicura che la tabella abbia una larghezza minima per lo scroll orizzontale */
+    min-height: 0.01%;
+    overflow-x: auto;
+}
+
+/* Stile per l'header dello scroll orizzontale */
+.table-scroll-header {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-bottom: 5px;
+    height: 20px; /* Altezza fissa per la barra di scorrimento */
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    background-color: #f8f9fa;
+}
+
+.table-scroll-header-inner {
+    height: 1px;
+    min-width: 100%;
+}
+
+/* Stile per il contenitore della tabella */
+.table-wrapper-fix {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+}
+
+/* Stile per la tabella */
+#gestione-gs-table {
+    width: 100% !important;
+    margin-bottom: 0 !important;
+    min-width: 100%;
 }
 
 .filter-container {
@@ -544,17 +579,17 @@ body.sidebar-collapsed .main-content {
     display: block !important;
 }
 
-/* Styles for content hiding in table cells */
-#gestione-gs-table tbody td {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    position: relative; /* For potential future use with custom tooltips */
-}
-
-/* Ensure editing input is not affected by ellipsis */
-#gestione-gs-table tbody td input {
-    white-space: normal; /* Or revert to default, depending on input type */
-    overflow: visible;
-    text-overflow: clip; /* Or revert to default */
+/* Migliora la posizione della paginazione DataTables */
+.dataTables_wrapper .dataTables_paginate {
+    width: 100% !important;
+    min-width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    margin-top: 1rem !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    background: #fff !important;
+    z-index: 10;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
 }

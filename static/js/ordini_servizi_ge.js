@@ -5,6 +5,9 @@ let editModeEnabled = false;
 let visibleColumnsState = [];
 let columnsConfig = [];
 let lastRTCValues = null;
+let columnViewMode = 'autosize'; // Modalità di visualizzazione colonne: 'autosize' o 'fixedwrap'
+let cellTooltipSingleton = null;
+let cellTooltipListenersAdded = false;
 
 // Funzione di utilità per la gestione degli errori
 function handleError(error, message = 'Si è verificato un errore') {
@@ -132,11 +135,11 @@ function saveColumnVisibility() {
 
 function updateEditModeState(enabled) {
     editModeEnabled = enabled;
-    const tableEl = $('#gestione-gs-table'); // Renamed to avoid conflict with global 'table'
+    const table = $('#gestione-gs-table');
     if (enabled) {
-        tableEl.addClass('edit-mode-active');
+        table.addClass('edit-mode-active');
     } else {
-        tableEl.removeClass('edit-mode-active');
+        table.removeClass('edit-mode-active');
     }
 }
 
@@ -284,47 +287,23 @@ async function initializeDataTable() {
             return {
                 data: field,
                 title: title,
-                className: field === 'id' ? 'editable' : '', // Assuming 'id' field should not be editable, adjust if needed. Original was first-child
+                className: field === 'id' ? 'editable' : '',
                 visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true)
             };
         });
 
-        const headerRow = `<tr>${columnsConfig.map(c => `<th>${c.title}</th>`).join('')}</tr>`;
-        $('#gestione-gs-table thead').html(headerRow); // Make sure <thead> exists or is created
-        $('#gestione-gs-table tfoot').html(''); // Make sure <tfoot> exists or is created
-
-        // Ensure the table element itself exists if it's being replaced or if DataTable is called on a selector that might be empty
-        if ($('#gestione-gs-table').length === 0) {
-             console.error("Elemento #gestione-gs-table non trovato prima dell'inizializzazione di DataTable.");
-             // Potresti voler creare la tabella qui se non esiste, o assicurarti che il partial HTML la includa.
-             // Per ora, assumiamo che il partial la crei correttamente.
-        } else {
-             // Se la tabella esiste ma è già un DataTable, distruggila prima.
-             if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
-                 console.log('Distruzione DataTable esistente prima della reinizializzazione.');
-                 $('#gestione-gs-table').DataTable().destroy();
-                 // Svuota thead e tbody per essere sicuro, dato che DataTable().destroy() non sempre lo fa completamente con serverSide.
-                 $('#gestione-gs-table thead').empty();
-                 $('#gestione-gs-table tbody').empty(); // Se presente, altrimenti DataTables lo crea.
-             }
-        }
-        // Re-add thead/tfoot in case they were destroyed and not recreated by the partial
-        if ($('#gestione-gs-table thead').length === 0) {
-            $('#gestione-gs-table').append('<thead></thead>');
-        }
-        if ($('#gestione-gs-table tfoot').length === 0) {
-            $('#gestione-gs-table').append('<tfoot></tfoot>');
-        }
+        const headerRow = `<tr>${columnsConfig.map(c => `<th data-col-id="${c.data}">${c.title}</th>`).join('')}</tr>`;
         $('#gestione-gs-table thead').html(headerRow);
-        $('#gestione-gs-table tfoot').html(''); // Footer is often empty unless used for column filters
-
+        $('#gestione-gs-table tfoot').html('');
+        // Applico subito le larghezze salvate dopo aver generato l'header
+        loadColumnWidths('#gestione-gs-table');
+        enableColumnResize('#gestione-gs-table');
 
         table = $('#gestione-gs-table').DataTable({
             processing: true,
             serverSide: true,
             fixedHeader: true,
             deferRender: true,
-            colReorder: true,
             ajax: {
                 url: '/api/servizi/ge/data',
                 type: 'POST',
@@ -371,25 +350,14 @@ async function initializeDataTable() {
                 console.log('DataTable redrawn.');
             },
             createdRow: function (row, data) {
-                // Make all cells except the one for 'ID' editable if 'ID' is the first column.
-                // This is just an example, adjust based on actual non-editable columns.
-                // The original logic was 'td:not(:first-child)'
-                $(row).find('td').each(function(index) {
-                    const columnData = table.column($(this).index(), ':visible').dataSrc();
-                    if (columnData !== 'ID') { // Example: Make cells not in 'ID' column editable
-                        $(this).addClass('editable');
-                    }
-                });
-
+                $(row).find('td:not(:first-child)').addClass('editable');
                 if (!editModeEnabled) {
                     $(row).find('td.editable').css('cursor', 'not-allowed');
-                } else {
-                    $(row).find('td.editable').css('cursor', 'pointer'); // Ensure pointer cursor in edit mode
                 }
             },
             initComplete: function () {
                 const api = this.api();
-                table = api; // Assign table instance to global variable
+                table = api;
 
                 if (visibleColumnsState.length > 0) {
                     api.columns().every(function (idx) {
@@ -587,22 +555,10 @@ async function initializeDataTable() {
         $('#gestione-gs-table').off('click', 'td.editable').on('click', 'td.editable', function () {
             if (!editModeEnabled) {
                 const cell = table.cell(this);
-                const cellData = cell.data();
-                const cellNode = $(cell.node());
-
-                // Check if content is actually truncated
-                // scrollWidth > clientWidth is a common way to check for overflow
-                if (cellNode[0].scrollWidth > cellNode[0].clientWidth) {
-                    // Display full content using a simple alert
-                    alert("Contenuto completo:\n\n" + cellData);
-                } else {
-                    // If not truncated, provide the visual feedback as before (optional)
-                    // This part can be removed if only truncated cells should react
-                    const originalBg = cell.node().style.backgroundColor;
-                    cell.node().style.backgroundColor = '#ffebee'; // Light red feedback
-                    setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
-                }
-                return; // Exit after handling click for non-edit mode
+                const originalBg = cell.node().style.backgroundColor;
+                cell.node().style.backgroundColor = '#ffebee';
+                setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
+                return;
             }
 
             const cell = table.cell(this);
@@ -647,7 +603,7 @@ async function initializeDataTable() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        pk: rowData.ID, // Assuming 'ID' is the primary key field from your data
+                        pk: rowData.ID,
                         field: columnName,
                         value: newValue
                     })
@@ -659,7 +615,7 @@ async function initializeDataTable() {
                     .then(result => {
                         if (result.status === 'success') {
                             $(cell.node()).empty();
-                            cell.data(newValue).draw(false); // draw(false) to redraw current page
+                            cell.data(newValue).draw();
                         } else {
                             throw new Error(result.message || 'Errore durante l\'aggiornamento');
                         }
@@ -667,7 +623,7 @@ async function initializeDataTable() {
                     .catch(error => {
                         console.error('Errore:', error);
                         $(cell.node()).empty();
-                        cell.data(data).draw(false); // Revert and redraw
+                        cell.data(data).draw();
                         if (error.message !== 'Errore nella risposta del server') {
                             alert(error.message);
                         }
@@ -682,28 +638,84 @@ async function initializeDataTable() {
     }
 }
 
+function syncHorizontalScroll() {
+    const tableWrapper = $('.table-wrapper-fix');
+    const scrollHeader = $('.table-scroll-header');
+    const table = $('#gestione-gs-table');
+    
+    if (!tableWrapper.length || !scrollHeader.length || !table.length) return;
+    
+    // Funzione per aggiornare la larghezza dell'header di scroll
+    function updateScrollHeader() {
+        const tableWidth = table.outerWidth();
+        const scrollWidth = table[0].scrollWidth;
+        
+        // Imposta la larghezza dell'header di scroll
+        $('.table-scroll-header-inner').css('width', scrollWidth + 'px');
+        
+        // Mostra/nascondi la barra di scorrimento in base alla necessità
+        if (scrollWidth > tableWidth) {
+            scrollHeader.css('display', 'block');
+        } else {
+            scrollHeader.css('display', 'none');
+        }
+    }
+    
+    // Aggiorna la larghezza quando la tabella viene ridimensionata
+    $(window).on('resize', updateScrollHeader);
+    
+    // Sincronizza lo scroll orizzontale
+    tableWrapper.on('scroll', function() {
+        const scrollLeft = $(this).scrollLeft();
+        scrollHeader.scrollLeft(scrollLeft);
+    });
+    
+    // Sincronizza anche nel senso inverso (se l'utente scorre l'header)
+    scrollHeader.on('scroll', function() {
+        const scrollLeft = $(this).scrollLeft();
+        tableWrapper.scrollLeft(scrollLeft);
+    });
+    
+    // Aggiorna la larghezza dopo l'inizializzazione di DataTables
+    if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
+        const dataTable = $('#gestione-gs-table').DataTable();
+        dataTable.on('draw.dt', function() {
+            setTimeout(updateScrollHeader, 0);
+        });
+    }
+    
+    // Esegui l'aggiornamento iniziale
+    setTimeout(updateScrollHeader, 100);
+    
+}
+
 async function initializeGestioneGSControls() {
     console.log('Inizializzazione controlli GS...');
+    
+    // Inizializza la tabella
+    initializeDataTable();
+    
+    // Sincronizza lo scroll orizzontale
+    syncHorizontalScroll();
+
     const monthFilter = document.getElementById('month-filter');
     if (!monthFilter) {
-        console.log('Month filter non trovato, impossibile inizializzare i controlli GS.');
+        console.log('Month filter non trovato');
         return;
     }
 
     // Inizializza il toggle di modifica
     initializeToggle();
 
-    if (monthFilter.options.length <= 1) { // Only populate if not already populated
+    // Aggiungo sempre il pulsante modalità colonne accanto a modifica attiva
+    addColumnViewModeButton();
+
+    if (monthFilter.options.length <= 1) {
         try {
             const response = await fetch('/api/servizi/ge/months');
-            if (!response.ok) throw new Error('Errore nel fetch dei mesi');
             const months = await response.json();
-            // Clear existing options except the first placeholder before adding new ones
-            // $(monthFilter).find('option:not(:first-child)').remove();
-            // This line might be too aggressive if months are ever pre-populated by server.
-            // Assuming it's safe if options.length <=1 check is reliable.
-            if (monthFilter.options.length <= 1) { // Double check, in case of async operations
-                 months.forEach(m => monthFilter.add(new Option(m, m)));
+            if (monthFilter.options.length <= 1) {
+                months.forEach(m => monthFilter.add(new Option(m, m)));
             }
         } catch (error) {
             console.error('Errore nel caricamento dei mesi:', error);
@@ -715,15 +727,14 @@ async function initializeGestioneGSControls() {
         console.log('Month filter changed. Selected month:', selectedMonth);
 
         $('#gestione-gs-table').hide();
-        // $('#loading-indicator').show(); // Make sure #loading-indicator exists in the partial
+        $('#loading-indicator').show();
 
         if (!selectedMonth) {
             console.log('No month selected. Clearing table if exists.');
             if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
                 table.clear().draw();
-                 $('#gestione-gs-table tbody').empty(); // Explicitly empty tbody
             }
-            // $('#loading-indicator').hide();
+            $('#loading-indicator').hide();
             $('#gestione-gs-table').show();
             return;
         }
@@ -731,12 +742,12 @@ async function initializeGestioneGSControls() {
         if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
             console.log('DataTable already initialized. Reloading data.');
             table.ajax.reload(function () {
-                // $('#loading-indicator').hide();
+                $('#loading-indicator').hide();
                 $('#gestione-gs-table').show();
             });
         } else {
             console.log('DataTable not initialized. Initializing table.');
-            initializeDataTable(); // This will also show the table via its own logic
+            initializeDataTable();
         }
         aggiornaFiltroRTC();
     });
@@ -766,14 +777,10 @@ async function initializeGestioneGSControls() {
         }
     });
 
-    // Inizializza la tabella se non è già inizializzata e un mese è selezionato
-    // Questo potrebbe essere ridondante se il change event del month-filter gestisce l'init.
-    // Ma utile se la pagina può caricare con un mese già selezionato (es. da stato salvato).
-    // if (!$.fn.DataTable.isDataTable('#gestione-gs-table') && $('#month-filter').val()) {
-    //    await initializeDataTable();
-    // }
-    // The initial load of the tab content and then this function might mean month-filter isn't populated yet.
-    // The month-filter change event is likely the primary trigger for table load.
+    // Inizializza la tabella se non è già inizializzata
+    if (!$.fn.DataTable.isDataTable('#gestione-gs-table')) {
+        await initializeDataTable();
+    }
 
     // Collega il pulsante esporta excel
     $('#exportBtn').off('click').on('click', handleExport);
@@ -784,32 +791,27 @@ function patchRicercaSoloInvio() {
     // Trova il campo ricerca DataTables
     var $input = $('#dt-filter-container input[type="search"]');
     if ($input.length) {
-        $input.off('input keyup'); // Rimuove listener precedenti
+        $input.off('input keyup');
         $input.on('keyup', function (e) {
             if (e.key === 'Enter') {
-                var currentTable = $('#gestione-gs-table').DataTable(); // Usa currentTable per evitare conflitti di scope
-                currentTable.search(this.value).draw();
+                var table = $('#gestione-gs-table').DataTable();
+                table.search(this.value).draw();
             }
         });
     }
 }
 
 // Applica la patch dopo ogni init della tabella
-$(document).on('init.dt', function (event, settings) {
-    // Assicurati che la patch sia applicata solo alla tabella corretta, se ci sono più tabelle sulla pagina
-    if (settings.nTable.id === 'gestione-gs-table') {
-        patchRicercaSoloInvio();
-    }
+$(document).on('init.dt', function () {
+    patchRicercaSoloInvio();
 });
 
 // Nascondi tutte le info, mostra solo quella DOPO la tabella (sotto)
-$(document).on('draw.dt', function (event, settings) {
-     if (settings.nTable.id === 'gestione-gs-table') {
-        $('.dataTables_info').hide(); // Questo potrebbe nascondere info di altre tabelle se non qualificato
-        // More specific selector:
-        $(settings.nTableWrapper).find('.dataTables_info').hide();
-        $(settings.nTableWrapper).find('.dataTables_info:last-of-type').show(); // Mostra solo l'ultima info nel wrapper della tabella corrente
-     }
+$(document).on('draw.dt', function () {
+    $('.dataTables_info').hide();
+    $('#gestione-gs-table').parent().nextAll('.dataTables_info').first().show();
+    const tdCount = document.querySelectorAll('#gestione-gs-table td').length;
+    console.debug('[TOOLTIP DEBUG] Numero di <td> nella tabella:', tdCount);
 });
 
 // Listener globale per ESC: resetta tutti i filtri tranne il mese
@@ -819,36 +821,249 @@ document.addEventListener('keydown', function (e) {
         const rtcFilter = document.getElementById('rtc-filter');
         if (rtcFilter) {
             rtcFilter.value = '';
-            // rtcFilter.dispatchEvent(new Event('change')); // Potrebbe causare reload non necessario se la tabella è già vuota
-            if ($.fn.DataTable.isDataTable('#gestione-gs-table') && table.page.info().recordsTotal > 0) {
-                 $('#gestione-gs-table').DataTable().ajax.reload(); // Ricarica solo se ci sono dati
-            }
+            rtcFilter.dispatchEvent(new Event('change'));
         }
         // Reset ricerca generica
         const searchInput = document.getElementById('generic-search');
-        if (searchInput && searchInput.value) { // Controlla se c'è un valore prima di resettare
+        if (searchInput) {
             searchInput.value = '';
-             if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
-                table.search('').draw(); // Applica la ricerca vuota
-            }
         }
-        // Reset filtri avanzati DataTables (se presenti e attivi)
+        // Reset filtri DataTables (se presenti)
         if (window.$ && $.fn.DataTable && table) {
-            let filtersActive = false;
-            table.columns().every(function() {
-                if (this.search()) {
-                    filtersActive = true;
-                }
-            });
-            if (filtersActive) {
-                 table.columns().search('').draw();
+            table.search('').columns().search('').draw();
+        }
+        // Reset filtri avanzati custom (se presenti)
+        document.querySelectorAll('.column-filter').forEach(input => input.value = '');
+    }
+});
+
+// === GESTIONE RESIZE COLONNE E TOOLTIP CELLE (PERSISTENTE) ===
+
+const COLUMN_WIDTHS_KEY = 'gsTableColWidths';
+
+function saveColumnWidths(tableSelector) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const thEls = table.querySelectorAll('th');
+    // Salva come oggetto {colId: width}
+    const widths = {};
+    thEls.forEach(th => {
+        const colId = th.getAttribute('data-col-id');
+        if (colId) widths[colId] = th.offsetWidth;
+    });
+    localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(widths));
+}
+
+function loadColumnWidths(tableSelector) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const widths = JSON.parse(localStorage.getItem(COLUMN_WIDTHS_KEY) || '{}');
+    if (!widths || typeof widths !== 'object') return;
+    const thEls = table.querySelectorAll('th');
+    // Per ogni colId salvato, trova la posizione attuale e applica la larghezza
+    Object.entries(widths).forEach(([colId, width]) => {
+        // Trova la posizione attuale della colonna con quel data-col-id
+        const th = Array.from(thEls).find(th => th.getAttribute('data-col-id') === colId);
+        if (!th) return;
+        th.style.width = width + 'px';
+        th.style.minWidth = width + 'px';
+        th.style.maxWidth = width + 'px';
+        // Trova l'indice attuale di questa colonna
+        const colIdx = Array.from(thEls).indexOf(th);
+        // Applica la larghezza a tutte le celle di quella colonna
+        table.querySelectorAll('tr').forEach(tr => {
+            const cell = tr.children[colIdx];
+            if (cell) {
+                cell.style.width = width + 'px';
+                cell.style.minWidth = width + 'px';
+                cell.style.maxWidth = width + 'px';
+            }
+        });
+    });
+}
+
+function enableColumnResize(tableSelector) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const thEls = table.querySelectorAll('th');
+    thEls.forEach((th) => {
+        const colId = th.getAttribute('data-col-id');
+        if (!colId) return;
+        th.style.position = 'relative';
+        // Aggiungi il manico per il resize
+        const resizer = document.createElement('div');
+        resizer.className = 'col-resizer';
+        resizer.style.position = 'absolute';
+        resizer.style.top = 0;
+        resizer.style.right = 0;
+        resizer.style.width = '6px';
+        resizer.style.height = '100%';
+        resizer.style.cursor = 'col-resize';
+        resizer.style.userSelect = 'none';
+        resizer.style.zIndex = 10;
+        th.appendChild(resizer);
+        let startX, startWidth;
+        let resizing = false;
+        resizer.addEventListener('mousedown', function (e) {
+            startX = e.pageX;
+            startWidth = th.offsetWidth;
+            resizing = true;
+            document.body.style.cursor = 'col-resize';
+            table.classList.add('resizing-columns');
+            table.style.pointerEvents = 'none';
+            function preventDT(e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            th.addEventListener('click', preventDT, true);
+            th.addEventListener('mousedown', preventDT, true);
+            function onMouseMove(e2) {
+                const newWidth = Math.max(40, startWidth + (e2.pageX - startX));
+                th.style.width = newWidth + 'px';
+                th.style.minWidth = newWidth + 'px';
+                th.style.maxWidth = newWidth + 'px';
+                // Applica anche alle celle della colonna con lo stesso data-col-id
+                const colIdx = Array.from(table.querySelectorAll('th')).findIndex(h => h.getAttribute('data-col-id') === colId);
+                table.querySelectorAll('tr').forEach(tr => {
+                    const cell = tr.children[colIdx];
+                    if (cell) {
+                        cell.style.width = newWidth + 'px';
+                        cell.style.minWidth = newWidth + 'px';
+                        cell.style.maxWidth = newWidth + 'px';
+                    }
+                });
+            }
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                document.body.style.cursor = '';
+                resizing = false;
+                table.classList.remove('resizing-columns');
+                table.style.pointerEvents = '';
+                th.removeEventListener('click', preventDT, true);
+                th.removeEventListener('mousedown', preventDT, true);
+                saveColumnWidths(tableSelector);
+            }
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    });
+}
+
+// === GESTIONE MODALITÀ VISUALIZZAZIONE COLONNE ===
+
+function setColumnsAutosize(tableSelector) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const thEls = table.querySelectorAll('th');
+    thEls.forEach(th => {
+        th.style.width = '';
+        th.style.minWidth = '';
+        th.style.maxWidth = '';
+    });
+    table.querySelectorAll('tr').forEach(tr => {
+        Array.from(tr.children).forEach(cell => {
+            cell.style.width = '';
+            cell.style.minWidth = '';
+            cell.style.maxWidth = '';
+            cell.style.whiteSpace = 'nowrap';
+            cell.style.textOverflow = 'ellipsis';
+            cell.style.overflow = 'hidden';
+        });
+    });
+}
+
+function setColumnsFixedWrap(tableSelector) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const thEls = table.querySelectorAll('th');
+    thEls.forEach(th => {
+        th.style.width = '150px';
+        th.style.minWidth = '150px';
+        th.style.maxWidth = '150px';
+    });
+    table.querySelectorAll('tr').forEach(tr => {
+        Array.from(tr.children).forEach(cell => {
+            cell.style.width = '150px';
+            cell.style.minWidth = '150px';
+            cell.style.maxWidth = '150px';
+            cell.style.whiteSpace = 'normal';
+            cell.style.textOverflow = 'clip';
+            cell.style.overflow = 'visible';
+        });
+    });
+}
+
+function applyColumnViewMode(tableSelector) {
+    // Salva la posizione di scroll orizzontale
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const tableWrapper = table.closest('.dataTables_wrapper') || table.parentElement;
+    const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
+
+    if (columnViewMode === 'autosize') {
+        setColumnsAutosize(tableSelector);
+    } else {
+        setColumnsFixedWrap(tableSelector);
+    }
+
+    // Ripristina la posizione di scroll orizzontale
+    if (tableWrapper) {
+        tableWrapper.scrollLeft = scrollLeft;
+    }
+}
+
+// Pulsante per cambiare modalità visualizzazione colonne
+function addColumnViewModeButton() {
+    if ($('#toggle-column-view-mode').length) return;
+    // Creo uno switch identico a 'Modifica attiva'
+    const switchHtml = `
+        <div class="form-check form-switch d-inline-flex align-items-center ms-2" id="column-view-mode-switch-wrapper">
+            <input class="form-check-input" type="checkbox" id="toggle-column-view-mode">
+            <label class="form-check-label small ms-1" for="toggle-column-view-mode">Colonne autosize</label>
+        </div>`;
+    const $switch = $(switchHtml);
+    $('#toggle-edit-mode').parent().after($switch);
+    $switch.find('input').on('change', function () {
+        if (this.checked) {
+            columnViewMode = 'fixedwrap';
+            $switch.find('label').text('Colonne tutte uguali');
+        } else {
+            columnViewMode = 'autosize';
+            $switch.find('label').text('Colonne autosize');
+        }
+        applyColumnViewMode('#gestione-gs-table');
+    });
+}
+
+// Modifica afterDataTableInit per applicare la modalità di visualizzazione corrente
+function afterDataTableInit() {
+    applyCellOverflowStyles('#gestione-gs-table');
+    enableColumnResize('#gestione-gs-table');
+    enableCellTooltip('#gestione-gs-table');
+    loadColumnWidths('#gestione-gs-table');
+    applyColumnViewMode('#gestione-gs-table');
+    addColumnViewModeButton();
+}
+
+// Dopo ogni draw della DataTable, applico sempre la modalità colonne scelta
+$(document).on('draw.dt', function (e, settings) {
+    if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
+        applyColumnViewMode('#gestione-gs-table');
+        // Aggiorno lo switch per coerenza visiva
+        const switchInput = document.getElementById('toggle-column-view-mode');
+        if (switchInput) {
+            switchInput.checked = (columnViewMode === 'fixedwrap');
+            const label = switchInput.parentElement.querySelector('label');
+            if (label) {
+                label.textContent = columnViewMode === 'fixedwrap' ? 'Colonne tutte uguali' : 'Colonne autosize';
             }
         }
-        // Reset filtri avanzati custom (se presenti nel pannello)
-        const advancedFiltersPanelActive = $('#advanced-filters-panel').hasClass('show');
-        if (advancedFiltersPanelActive) {
-            document.querySelectorAll('#advanced-filters-panel .column-filter').forEach(input => input.value = '');
-            // Potrebbe essere necessario chiudere il pannello o notificare all'utente
+        // Sposto la paginazione dentro il wrapper scrollabile
+        var $paginate = $('.dataTables_paginate');
+        var $scrollWrapper = $('.table-wrapper-fix');
+        if ($paginate.length && $scrollWrapper.length) {
+            $scrollWrapper.append($paginate);
         }
     }
 });
