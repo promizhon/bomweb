@@ -3,9 +3,12 @@ let editModeEnabled = false;
 let visibleColumnsState = [];
 let columnsConfig = [];
 let lastRTCValues = null;
-let columnViewMode = 'autosize'; // Modalità di visualizzazione colonne: 'autosize' o 'fixedwrap'
+let columnViewMode = 'fixedwrap'; // Modalità di visualizzazione colonne: 'autosize' o 'fixedwrap'
 let cellTooltipSingleton = null;
 let cellTooltipListenersAdded = false;
+
+// Variabile globale per tracciare la posizione di scroll orizzontale
+window.lastTableScrollLeft = 0;
 
 // Funzione di utilità per la gestione degli errori
 function handleError(error, message = 'Si è verificato un errore') {
@@ -137,7 +140,7 @@ function initializeToggle() {
         // Rimuovi eventuali listener precedenti per evitare duplicazioni
         const newToggle = toggleEditMode.cloneNode(true);
         toggleEditMode.parentNode.replaceChild(newToggle, toggleEditMode);
-        
+
         newToggle.addEventListener('change', function () {
             updateEditModeState(this.checked);
         });
@@ -245,21 +248,18 @@ async function initializeDataTable() {
 
     if (!selectedMonth) {
         console.log('[initializeDataTable] Nessun mese selezionato, inizializzazione tabella saltata.');
-        // Potresti voler nascondere o mostrare un messaggio qui
         if (window.table) {
-            window.table.clear().draw(); // Pulisce la tabella se era già inizializzata
+            window.table.clear().draw();
         }
         return;
     }
 
-    // Mostra l'indicatore di caricamento se esiste
     const loadingIndicator = document.getElementById('loading-indicator');
     if (loadingIndicator) loadingIndicator.style.display = 'block';
     const tableElement = $('#gestione-gs-table');
-    if (tableElement.length) tableElement.hide(); // Nascondi la tabella durante il caricamento
+    if (tableElement.length) tableElement.hide();
 
     try {
-        // Pulisci i contenitori dei controlli DataTables prima di reinizializzare
         $('#dt-length-container').empty();
         $('#dt-buttons-container').empty();
         $('#dt-filter-container').empty();
@@ -272,33 +272,31 @@ async function initializeDataTable() {
 
         if (!Array.isArray(columnsData) || columnsData.length === 0) {
             console.warn('Nessuna colonna ricevuta dal server o formato non valido.');
-            columnsConfig = []; // Assicura che sia un array vuoto se non ci sono colonne
+            columnsConfig = [];
         } else {
             columnsConfig = columnsData.map((col, idx) => ({
                 data: col.field,
                 title: col.title || col.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                className: col.field === 'id' ? 'editable' : 'editable', // Rendi tutte le colonne editabili per ora, o applica logica specifica
+                className: col.field === 'id' ? 'editable' : 'editable',
                 visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true)
             }));
         }
 
-        // Distruggi la tabella DataTables esistente se presente
         if ($.fn.DataTable.isDataTable('#gestione-gs-table')) {
             console.log('[initializeDataTable] Distruzione tabella DataTables esistente.');
             $('#gestione-gs-table').DataTable().destroy();
-            $('#gestione-gs-table thead').empty(); // Rimuovi header e footer vecchi
+            $('#gestione-gs-table thead').empty();
             $('#gestione-gs-table tfoot').empty();
-            $('#gestione-gs-table tbody').empty(); // Pulisci anche il corpo della tabella
+            $('#gestione-gs-table tbody').empty();
         }
 
         const headerRow = `<tr>${columnsConfig.map(c => `<th data-col-id="${c.data}">${c.title}</th>`).join('')}</tr>`;
         $('#gestione-gs-table thead').html(headerRow);
-        // Non è necessario creare tfoot se non lo usi per filtri per colonna specifici
 
         window.table = $('#gestione-gs-table').DataTable({
             processing: true,
             serverSide: true,
-            fixedHeader: true,
+            fixedHeader: false,
             deferRender: true,
             ajax: {
                 url: '/api/servizi/ge/data',
@@ -310,13 +308,12 @@ async function initializeDataTable() {
                         month_filter: $('#month-filter').val() || '',
                         rtc_filter: $('#rtc-filter').val() || ''
                     };
-                    // console.log('AJAX request payload:', payload); // Rimosso per pulizia console
                     return JSON.stringify(payload);
                 },
                 error: handleAjaxError
             },
             columns: columnsConfig,
-            dom: '<"dt-controls-temp d-none"lBf>rtip', // 'l' per length, 'B' per buttons, 'f' per filter, 'r' per processing, 't' per table, 'i' per info, 'p' per pagination
+            dom: '<"dt-controls-temp d-none"lBf>rtip',
             lengthMenu: [[10, 25, 50, 100, 250, -1], [10, 25, 50, 100, 250, "Tutti"]],
             pageLength: 25,
             buttons: [
@@ -324,17 +321,14 @@ async function initializeDataTable() {
                     extend: 'colvis',
                     text: 'Visibilità Colonne',
                     className: 'buttons-colvis',
-                    // Non è necessario prefixButtons se non hai funzionalità specifiche lì
                 }
             ],
             language: { url: "/static/i18n/Italian.json" },
-            select: { style: 'single', selector: 'tr' }, // o 'os' per selezione multipla
+            select: { style: 'single', selector: 'tr' },
             drawCallback: function (settings) {
-                // console.log('DataTable redrawn (drawCallback).');
-                // Non chiamare updateScrollHeader qui perché è già gestito dall'evento 'draw.dt' agganciato in initComplete
             },
             createdRow: function (row, data, dataIndex) {
-                $(row).find('td').addClass('editable'); // Rendi tutte le celle editabili
+                $(row).find('td').addClass('editable');
                 if (!editModeEnabled) {
                     $(row).find('td.editable').css('cursor', 'not-allowed');
                 }
@@ -342,7 +336,7 @@ async function initializeDataTable() {
             initComplete: function (settings, json) {
                 console.log('[initializeDataTable/initComplete] DataTables initComplete eseguito.');
                 const api = this.api();
-                window.table = api; // Sovrascrive la variabile globale 'table' con l'istanza API di DataTables
+                window.table = api;
 
                 if (visibleColumnsState.length > 0) {
                     api.columns().every(function (idx) {
@@ -350,11 +344,10 @@ async function initializeDataTable() {
                     });
                 }
 
-                // Sposta i controlli DataTables nei contenitori designati
                 $('.dataTables_length').appendTo('#dt-length-container');
                 $('.dt-buttons').appendTo('#dt-buttons-container');
                 $('.dataTables_filter').appendTo('#dt-filter-container');
-                $('.dt-controls-temp').remove(); // Rimuovi il contenitore temporaneo
+                $('.dt-controls-temp').remove();
 
                 $('#dt-filter-container input[type="search"]').attr('placeholder', 'Cerca nella tabella...');
 
@@ -380,11 +373,11 @@ async function initializeDataTable() {
                 api.columns().every(function () {
                     const column = this;
                     const columnData = column.settings()[0].aoColumns[column.index()].data;
-                    const columnTitle = $(column.header()).text(); // Usa .text() per ottenere il titolo pulito
+                    const columnTitle = $(column.header()).text();
 
                     const filterDiv = $(`
                         <div class="filter-item">
-                            <label for="filter-${columnData.replace(/\./g, '-')}">${columnTitle}</label> <!-- Sostituisci . con - per ID validi -->
+                            <label for="filter-${columnData.replace(/\./g, '-')}">${columnTitle}</label>
                             <div class="input-group">
                                 <input type="text" 
                                        class="form-control column-filter" 
@@ -402,20 +395,20 @@ async function initializeDataTable() {
                     let lastFilters = '';
 
                     function fetchAndShowDropdown(searchText = '') {
-                        const colName = filterInput.data('column-name'); // Usa data-column-name
+                        const colName = filterInput.data('column-name');
                         const month = $('#month-filter').val() || '';
-                        const currentFilters = {}; // Costruisci i filtri attuali per la richiesta
-                        $('.column-filter').each(function() {
+                        const currentFilters = {};
+                        $('.column-filter').each(function () {
                             const $input = $(this);
                             const col = $input.data('column-name');
                             const val = $input.val();
-                            if (val && col !== colName) { // Escludi il filtro della colonna corrente
-                                currentFilters[col] = { value: val, regex: false }; // Semplificato per ora
+                            if (val && col !== colName) {
+                                currentFilters[col] = { value: val, regex: false };
                             }
                         });
                         const globalSearchVal = $('#generic-search').val();
                         if (globalSearchVal) {
-                            currentFilters['global_search'] = { value: globalSearchVal, regex: false};
+                            currentFilters['global_search'] = { value: globalSearchVal, regex: false };
                         }
 
                         const filtersStr = encodeURIComponent(JSON.stringify(currentFilters));
@@ -460,7 +453,7 @@ async function initializeDataTable() {
                                 item.find('span').text(value);
                                 item.on('click', function () {
                                     filterInput.val(value);
-                                    column.search('^' + escapeRegex(value) + '$', true, false).draw(); // Ricerca esatta
+                                    column.search('^' + escapeRegex(value) + '$', true, false).draw();
                                     dropdownMenu.removeClass('show');
                                 });
                                 dropdownMenu.append(item);
@@ -485,83 +478,94 @@ async function initializeDataTable() {
                     });
                 });
 
-                // Aggancia l'evento draw.dt all'API di DataTables per aggiornare lo scroll orizzontale
                 if (api && typeof api.on === 'function') {
                     console.log('[initializeDataTable/initComplete] Agganciando evento draw.dt a DataTables API (api) per scroll.');
                     api.off('draw.dt.scrollHeader');
-                    api.on('draw.dt.scrollHeader', function() {
-                        console.log('[initializeDataTable/initComplete] Evento draw.dt di DataTables scatenato (per scroll).');
-                        const scrollHeaderJQ = $('.table-scroll-header');
-                        const tableWrapperJQ = $('.table-wrapper-fix');
-                        const gestioneGsTableJQ = $('#gestione-gs-table');
-                        if (gestioneGsTableJQ.length && gestioneGsTableJQ[0] && scrollHeaderJQ.length && tableWrapperJQ.length) {
-                            const tableElement = gestioneGsTableJQ[0];
-                            const wrapperWidth = tableWrapperJQ.outerWidth(); // Larghezza visibile del contenitore scrollabile
-                            const scrollWidth = tableElement.scrollWidth; // Larghezza totale del contenuto scrollabile
-                            console.log('[draw.dt - scrollHandler] Valori: wrapperWidth:', wrapperWidth, '| tableElement.scrollWidth:', scrollWidth);
-                            $('.table-scroll-header-inner').css('width', scrollWidth + 'px');
-                            if (scrollWidth > wrapperWidth && wrapperWidth > 0) {
-                                console.log('[draw.dt - scrollHandler] -> Mostrando scrollHeader.');
-                                scrollHeaderJQ.css('display', 'block');
-                            } else {
-                                console.log('[draw.dt - scrollHandler] -> Nascondendo scrollHeader.');
-                                scrollHeaderJQ.css('display', 'none');
-                            }
+                    api.on('draw.dt.scrollHeader', function () {
+                        // console.log('[initializeDataTable/initComplete] Evento draw.dt di DataTables scatenato (per scroll).');
+                        if (typeof window.updateCustomScrollHeader === 'function') {
+                            window.updateCustomScrollHeader();
                         }
                     });
                 } else {
                     console.error('[initializeDataTable/initComplete] ERRORE: API DataTables (api) non è valida o manca il metodo .on() per agganciare draw.dt per lo scroll.');
                 }
 
-                // Applica la visibilità di default delle colonne in base al backend
-                // Questo deve usare l'istanza 'api' o 'window.table' corretta
-                window.table.columns().every(function (idx) { 
+                window.table.columns().every(function (idx) {
                     const colDef = columnsConfig[idx];
                     if (typeof colDef.visible === 'boolean') {
                         window.table.column(idx).visible(colDef.visible);
                     }
                 });
 
-                // Chiamata finale per assicurare che lo stato iniziale sia corretto
                 if (typeof syncHorizontalScroll === 'function') {
-                    syncHorizontalScroll(); // Assicura che syncHorizontalScroll sia chiamata dopo che la tabella è completamente pronta
+                    syncHorizontalScroll();
                 }
             }
         });
 
-        // Evento per aggiornare il conteggio dei record (già presente e sembra corretto)
-        $('#gestione-gs-table').on('draw.dt', function () {
-            const info = $(this).DataTable().page.info(); // Usa $(this).DataTable() per ottenere l'istanza API corretta
+        $('#gestione-gs-table').off('draw.dt.recordCount').on('draw.dt.recordCount', function () {
+            const info = $(this).DataTable().page.info();
             const countText = `Vista da ${info.start + 1} a ${info.end} di ${info.recordsDisplay} elementi (filtrati da ${info.recordsTotal} totali)`;
             $('#record-count').text(countText);
         });
 
         $('#gestione-gs-table').off('click', 'td.editable').on('click', 'td.editable', function () {
             if (!editModeEnabled) {
-                const cell = window.table.cell(this); // Usa window.table (API)
+                const cell = window.table.cell(this);
                 const originalBg = cell.node().style.backgroundColor;
                 cell.node().style.backgroundColor = '#ffebee';
                 setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
                 return;
             }
 
-            const cell = window.table.cell(this); // Usa window.table (API)
+            const cell = window.table.cell(this);
             const column = cell.index().column;
             const row = cell.index().row;
             const data = cell.data();
-            const rowData = window.table.row(row).data(); // Usa window.table (API)
-            const columnName = window.table.settings()[0].aoColumns[column].data; // Usa window.table (API)
+            const rowData = window.table.row(row).data();
+            const columnName = window.table.settings()[0].aoColumns[column].data;
 
-            const input = $('<input>')
-                .attr('type', 'text')
-                .addClass('form-control form-control-sm')
-                .val(data)
-                .css({ 'width': '100%', 'height': '100%', 'border': '1px solid #ddd', 'padding': '0.25rem', 'box-sizing': 'border-box', 'background-color': '#fff' });
+            let editor;
+            if (columnViewMode === 'autosize') {
+                editor = $('<textarea>')
+                    .addClass('form-control form-control-sm autosize-editor')
+                    .val(data)
+                    .css({
+                        'width': '100%',
+                        'min-height': '2.2em',
+                        'height': 'auto',
+                        'border': '1px solid #ddd',
+                        'padding': '0.25rem',
+                        'box-sizing': 'border-box',
+                        'background-color': '#fff',
+                        'resize': 'vertical',
+                        'overflow-y': 'auto',
+                        'white-space': 'pre-wrap',
+                        'font-family': 'inherit',
+                        'font-size': 'inherit'
+                    });
+                // Adatta l'altezza al contenuto
+                setTimeout(() => {
+                    editor[0].style.height = 'auto';
+                    editor[0].style.height = editor[0].scrollHeight + 'px';
+                }, 0);
+                editor.on('input', function () {
+                    this.style.height = 'auto';
+                    this.style.height = this.scrollHeight + 'px';
+                });
+            } else {
+                editor = $('<input>')
+                    .attr('type', 'text')
+                    .addClass('form-control form-control-sm')
+                    .val(data)
+                    .css({ 'width': '100%', 'height': '100%', 'border': '1px solid #ddd', 'padding': '0.25rem', 'box-sizing': 'border-box', 'background-color': '#fff' });
+            }
 
             $(cell.node()).css('position', 'relative');
-            input.on('click', function (e) { e.stopPropagation(); });
+            editor.on('click', function (e) { e.stopPropagation(); });
 
-            input.off('blur keypress').on('blur keypress', function (e) {
+            editor.off('blur keypress').on('blur keypress', function (e) {
                 if (e.type === 'keypress' && e.which !== 13) return;
                 const newValue = $(this).val();
                 if (newValue === data) {
@@ -573,109 +577,92 @@ async function initializeDataTable() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pk: rowData.ID, field: columnName, value: newValue })
                 })
-                .then(response => {
-                    if (!response.ok) throw new Error('Errore nella risposta del server');
-                    return response.json();
-                })
-                .then(result => {
-                    if (result.status === 'success') {
+                    .then(response => {
+                        if (!response.ok) throw new Error('Errore nella risposta del server');
+                        return response.json();
+                    })
+                    .then(result => {
+                        if (result.status === 'success') {
+                            $(cell.node()).empty();
+                            cell.data(newValue).draw(false);
+                        } else {
+                            throw new Error(result.message || 'Errore durante l\'aggiornamento');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Errore:', error);
                         $(cell.node()).empty();
-                        cell.data(newValue).draw(false); // Usa draw(false) per non resettare la paginazione
-                    } else {
-                        throw new Error(result.message || 'Errore durante l\'aggiornamento');
-                    }
-                })
-                .catch(error => {
-                    console.error('Errore:', error);
-                    $(cell.node()).empty();
-                    cell.data(data).draw(false); // Ripristina e ridisegna senza resettare la paginazione
-                    if (error.message !== 'Errore nella risposta del server') {
-                        alert(error.message);
-                    }
-                });
+                        cell.data(data).draw(false);
+                        if (error.message !== 'Errore nella risposta del server') {
+                            alert(error.message);
+                        }
+                    });
             });
-            $(cell.node()).html(input);
-            input.focus();
+            $(cell.node()).html(editor);
+            editor.focus();
         });
     } catch (error) {
         handleError(error, 'Errore durante il caricamento della tabella');
     } finally {
-        // Nascondi l'indicatore di caricamento se esiste
         const loadingIndicator = document.getElementById('loading-indicator');
         if (loadingIndicator) loadingIndicator.style.display = 'none';
         const tableElement = $('#gestione-gs-table');
-        if (tableElement.length) tableElement.show(); // Mostra la tabella
+        if (tableElement.length) tableElement.show();
     }
 }
 
 function syncHorizontalScroll() {
     const tableWrapper = $('.table-wrapper-fix');
     const scrollHeader = $('.table-scroll-header');
-    const tablejQuery = $('#gestione-gs-table'); // Riferimento jQuery all'elemento tabella
-    
+    const tablejQuery = $('#gestione-gs-table');
+
     if (!tableWrapper.length) {
-        console.error('[syncHorizontalScroll] Elemento .table-wrapper-fix non trovato.');
+        // console.error('[syncHorizontalScroll] Elemento .table-wrapper-fix non trovato.');
         return;
     }
     if (!scrollHeader.length) {
-        console.error('[syncHorizontalScroll] Elemento .table-scroll-header non trovato.');
+        // console.error('[syncHorizontalScroll] Elemento .table-scroll-header non trovato.');
         return;
     }
     if (!tablejQuery.length) {
-        console.error('[syncHorizontalScroll] Elemento #gestione-gs-table non trovato.');
+        // console.error('[syncHorizontalScroll] Elemento #gestione-gs-table non trovato.');
         return;
     }
-    
-    // Funzione per aggiornare la visibilità e larghezza dello scroll header
-    // Questa funzione ora è definita qui e può essere chiamata da diversi posti.
-    window.updateCustomScrollHeader = function() { // Esponila globalmente o passala come callback se preferisci
-        if (!tablejQuery.length || !tablejQuery[0]) { 
-            console.error('[updateCustomScrollHeader] Elemento DOM della tabella #gestione-gs-table non trovato tramite jQuery.');
+
+    window.updateCustomScrollHeader = function () {
+        if (!tablejQuery.length || !tablejQuery[0] || !tableWrapper.length || !scrollHeader.length) {
             return;
         }
         const tableElement = tablejQuery[0];
         const wrapperWidth = tableWrapper.outerWidth();
         const tableScrollWidth = tableElement.scrollWidth;
-        
-        console.log('[updateCustomScrollHeader] --- ESEGUITA ---');
-        console.log('[updateCustomScrollHeader] Valori: wrapperWidth:', wrapperWidth, '| tableElement.scrollWidth:', tableScrollWidth);
-        
-        $('.table-scroll-header-inner').css('width', tableScrollWidth + 'px');
-        
+
+        // console.log('[updateCustomScrollHeader] Valori: wrapperWidth:', wrapperWidth, '| tableScrollWidth:', tableScrollWidth);
+
+        scrollHeader.find('.table-scroll-header-inner').css('width', tableScrollWidth + 'px');
+
         if (tableScrollWidth > wrapperWidth && wrapperWidth > 0) {
-            console.log('[updateCustomScrollHeader] -> Mostrando scrollHeader.');
             scrollHeader.css('display', 'block');
         } else {
-            console.log('[updateCustomScrollHeader] -> Nascondendo scrollHeader (scrollWidth <= tableWidth o tableWidth == 0).');
             scrollHeader.css('display', 'none');
         }
     }
-    
-    console.log('[syncHorizontalScroll] Event listener per window resize aggiunto.');
-    $(window).on('resize', window.updateCustomScrollHeader);
-    
-    console.log('[syncHorizontalScroll] Event listener per tableWrapper scroll aggiunto.');
-    tableWrapper.on('scroll', function() {
-        scrollHeader.scrollLeft($(this).scrollLeft());
+
+    $(window).off('resize.customScroll').on('resize.customScroll', window.updateCustomScrollHeader);
+    tableWrapper.off('scroll.customScroll').on('scroll.customScroll', function () {
+        if (scrollHeader.length) scrollHeader.scrollLeft($(this).scrollLeft());
     });
-    
-    console.log('[syncHorizontalScroll] Event listener per scrollHeader scroll aggiunto.');
-    scrollHeader.on('scroll', function() {
-        tableWrapper.scrollLeft($(this).scrollLeft());
+    scrollHeader.off('scroll.customScroll').on('scroll.customScroll', function () {
+        if (tableWrapper.length) tableWrapper.scrollLeft($(this).scrollLeft());
     });
-        
-    console.log('[syncHorizontalScroll] Chiamata iniziale a updateCustomScrollHeader (dopo 100ms).');
-    setTimeout(window.updateCustomScrollHeader, 100); 
+
+    setTimeout(window.updateCustomScrollHeader, 150); // Aumentato leggermente il timeout
 }
 
 async function initializeGestioneGSControls() {
-    console.log('TEST: initializeGestioneGSControls CHIAMATA ORA!');
     console.log('Inizializzazione controlli GS...');
-    
-    // Inizializza la tabella. La variabile globale 'table' (DataTables API) sarà impostata qui.
-    await initializeDataTable(); 
-    
-    // Sincronizza lo scroll orizzontale. Ora può usare l'API di DataTables se necessario.
+
+    await initializeDataTable();
     syncHorizontalScroll();
 
     const monthFilter = document.getElementById('month-filter');
@@ -685,11 +672,12 @@ async function initializeGestioneGSControls() {
     }
 
     initializeToggle();
-    addColumnViewModeButton();
+    // addColumnViewModeButton è chiamato in afterDataTableInit per assicurare che window.table esista
 
     if (monthFilter.options.length <= 1) {
         try {
             const response = await fetch('/api/servizi/ge/months');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const months = await response.json();
             if (monthFilter.options.length <= 1) {
                 months.forEach(m => monthFilter.add(new Option(m, m)));
@@ -701,41 +689,37 @@ async function initializeGestioneGSControls() {
 
     $('#month-filter').off('change').on('change', async function () {
         const selectedMonth = $(this).val();
-        console.log('Month filter changed. Selected month:', selectedMonth);
-
-        // Mostra l'indicatore di caricamento se esiste
         const loadingIndicator = document.getElementById('loading-indicator');
-        if (loadingIndicator) loadingIndicator.style.display = 'block';
         const tableElement = $('#gestione-gs-table');
+
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
         if (tableElement.length) tableElement.hide();
 
         if (!selectedMonth) {
-            console.log('No month selected. Clearing table if exists.');
-            if ($.fn.DataTable.isDataTable('#gestione-gs-table') && window.table) {
+            if (window.table) {
                 window.table.clear().draw();
             }
             if (loadingIndicator) loadingIndicator.style.display = 'none';
             if (tableElement.length) tableElement.show();
+            // window.updateCustomScrollHeader(); // Chiamato da draw event
             return;
         }
 
         if ($.fn.DataTable.isDataTable('#gestione-gs-table') && window.table) {
-            console.log('DataTable already initialized. Reloading data.');
-            // L'evento 'draw.dt' gestirà l'aggiornamento dello scroll header
             window.table.ajax.reload(() => {
                 if (loadingIndicator) loadingIndicator.style.display = 'none';
                 if (tableElement.length) tableElement.show();
+                // window.updateCustomScrollHeader(); // Chiamato da draw event
             });
         } else {
-            console.log('DataTable not initialized. Initializing table.');
-            await initializeDataTable(); // Questo ora gestirà anche l'aggiornamento dello scroll header tramite initComplete/draw.dt
+            await initializeDataTable();
         }
         aggiornaFiltroRTC();
     });
 
     $('#generic-search').off('keyup').on('keyup', function (e) {
         if (e.key === 'Enter' || this.value === '') {
-            if (window.table) { // Usa window.table (API)
+            if (window.table) {
                 window.table.search(this.value).draw();
                 aggiornaFiltroRTC();
             }
@@ -753,13 +737,10 @@ async function initializeGestioneGSControls() {
     });
 
     $('#rtc-filter').off('change').on('change', function () {
-        if (window.table) { // Usa window.table (API)
+        if (window.table) {
             window.table.ajax.reload();
         }
     });
-
-    // Rimosso: if (!$.fn.DataTable.isDataTable('#gestione-gs-table')) { await initializeDataTable(); }
-    // perché initializeDataTable() è già chiamata all'inizio di initializeGestioneGSControls.
 
     $('#exportBtn').off('click').on('click', handleExport);
 }
@@ -767,7 +748,7 @@ async function initializeGestioneGSControls() {
 function patchRicercaSoloInvio() {
     var $input = $('#dt-filter-container input[type="search"]');
     if ($input.length) {
-        $input.off('input keyup'); // Rimuovi handler precedenti
+        $input.off('input keyup');
         $input.on('keyup', function (e) {
             if (e.key === 'Enter') {
                 if (window.table) {
@@ -778,37 +759,37 @@ function patchRicercaSoloInvio() {
     }
 }
 
-$(document).on('init.dt', function(e, settings) {
+$(document).off('init.dt.gestioneGS').on('init.dt.gestioneGS', function (e, settings) {
     if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
-        console.log('[document/init.dt] Evento init.dt per #gestione-gs-table scatenato.');
+        console.log('[document/init.dt.gestioneGS] Evento init.dt per #gestione-gs-table scatenato.');
         patchRicercaSoloInvio();
-        afterDataTableInit(); // Chiamata qui per assicurare che la tabella sia pronta
+        afterDataTableInit();
     }
 });
 
-$(document).on('draw.dt', function(e, settings) {
+// Listener per aggiornare la variabile ogni volta che l'utente scrolla orizzontalmente
+$(document).on('scroll', '.table-wrapper-fix', function () {
+    window.lastTableScrollLeft = $(this).scrollLeft();
+});
+
+$(document).off('draw.dt.gestioneGS').on('draw.dt.gestioneGS', function (e, settings) {
     if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
-        // La logica per lo scrollbar è ora dentro initComplete e si auto-aggiorna con draw.dt
-        // La logica per il conteggio record è già in table.on('draw', ...)
-        // La logica per applyColumnViewMode è già qui
-
-        // Rimuovo i log duplicati o non necessari da qui per pulizia
-        // console.debug('[TOOLTIP DEBUG] Numero di <td> nella tabella:', $(settings.nTable).find('td').length);
-
-        // Gestione info DataTables (già presente e sembra ok)
         const $wrapper = $(settings.nTable).closest('.dataTables_wrapper');
         $wrapper.find('.dataTables_info').hide();
-        $wrapper.find('.dataTables_info:last-of-type').show(); 
+        $wrapper.find('.dataTables_info:last-of-type').show();
 
-        // Gestione paginazione (già presente)
         const $paginate = $wrapper.find('.dataTables_paginate');
-        const $scrollWrapper = $('.table-wrapper-fix'); // Assicurati che questo sia il contenitore corretto
-        if ($paginate.length && $scrollWrapper.length) {
-            $scrollWrapper.append($paginate); // Questo sposta la paginazione sotto la tabella scrollabile
+        const $tableWrapperFix = $('.table-wrapper-fix');
+        if ($paginate.length && $tableWrapperFix.length && !$tableWrapperFix.find('.dataTables_paginate').length) {
+            $tableWrapperFix.append($paginate); // Sposta solo se non già presente
         }
 
-        // Gestione modalità colonne (già presente)
-        applyColumnViewMode('#gestione-gs-table');
+        applyColumnViewMode('#gestione-gs-table', true);
+        // Ripristina sempre la posizione di scroll orizzontale salvata
+        if ($tableWrapperFix.length) {
+            setTimeout(function () { $tableWrapperFix.scrollLeft(window.lastTableScrollLeft || 0); }, 30);
+        }
+
         const switchInput = document.getElementById('toggle-column-view-mode');
         if (switchInput) {
             switchInput.checked = (columnViewMode === 'fixedwrap');
@@ -817,6 +798,7 @@ $(document).on('draw.dt', function(e, settings) {
                 label.textContent = columnViewMode === 'fixedwrap' ? 'Colonne tutte uguali' : 'Colonne autosize';
             }
         }
+        // window.updateCustomScrollHeader(); // Chiamato dall'handler specifico dell'istanza DataTables su draw.dt.scrollHeader
     }
 });
 
@@ -825,16 +807,16 @@ document.addEventListener('keydown', function (e) {
         const rtcFilter = document.getElementById('rtc-filter');
         if (rtcFilter) {
             rtcFilter.value = '';
-            rtcFilter.dispatchEvent(new Event('change'));
+            $(rtcFilter).trigger('change');
         }
         const searchInput = document.getElementById('generic-search');
         if (searchInput) {
             searchInput.value = '';
+            if (window.table) { window.table.search('').draw(); }
         }
-        if (window.table) {
-            window.table.search('').columns().search('').draw();
-        }
-        document.querySelectorAll('.column-filter').forEach(input => input.value = '');
+        document.querySelectorAll('.column-filter').forEach(input => {
+            $(input).val('').trigger('keyup');
+        });
         $('#advanced-filters-panel').removeClass('show');
         $('.advanced-filters-overlay').removeClass('show');
     }
@@ -844,139 +826,149 @@ const COLUMN_WIDTHS_KEY = 'gsTableColWidths';
 
 function saveColumnWidths(tableSelector) {
     const tableEl = document.querySelector(tableSelector);
-    if (!tableEl) return;
-    const thEls = tableEl.querySelectorAll('thead th');
+    if (!tableEl || !window.table) return;
     const widths = {};
-    thEls.forEach(th => {
-        const colId = th.getAttribute('data-col-id');
-        if (colId) widths[colId] = th.offsetWidth;
+    $(tableEl).find('thead th').each(function () {
+        const th = $(this);
+        const colId = th.attr('data-col-id');
+        if (colId) widths[colId] = th.css('width'); // Salva la larghezza CSS effettiva
     });
     localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(widths));
 }
 
 function loadColumnWidths(tableSelector) {
     const tableEl = document.querySelector(tableSelector);
-    if (!tableEl) return;
+    if (!tableEl || !window.table) return;
     const widths = JSON.parse(localStorage.getItem(COLUMN_WIDTHS_KEY) || '{}');
     if (!widths || typeof widths !== 'object') return;
-    const thEls = tableEl.querySelectorAll('thead th');
-    Object.entries(widths).forEach(([colId, width]) => {
-        const th = Array.from(thEls).find(th => th.getAttribute('data-col-id') === colId);
-        if (!th) return;
-        const colIdx = Array.from(th.parentNode.children).indexOf(th);
-        if (colIdx !== -1) {
-            // Applica solo a th, DataTables gestirà le celle del corpo
-            th.style.width = width + 'px';
-            th.style.minWidth = width + 'px';
-            th.style.maxWidth = width + 'px';
+
+    let requiresAdjust = false;
+    window.table.columns().every(function (colIdx) {
+        const column = this;
+        const colData = column.settings()[0].aoColumns[colIdx].data;
+        const th = $(column.header());
+        if (widths[colData]) {
+            th.css('width', widths[colData]);
+            th.css('min-width', widths[colData]);
+            requiresAdjust = true;
         }
     });
+    if (requiresAdjust) {
+        window.table.columns.adjust();
+    }
 }
 
 function enableColumnResize(tableSelector) {
     const tableEl = document.querySelector(tableSelector);
-    if (!tableEl) return;
-    const thEls = tableEl.querySelectorAll('thead th');
-    thEls.forEach((th) => {
-        const colId = th.getAttribute('data-col-id');
-        if (!colId || th.querySelector('.col-resizer')) return; // Evita di aggiungere più volte
-        
-        th.style.position = 'relative';
-        const resizer = document.createElement('div');
-        resizer.className = 'col-resizer';
-        resizer.style.position = 'absolute';
-        resizer.style.top = '0';
-        resizer.style.right = '-3px'; // Posiziona leggermente fuori per facilitare il click
-        resizer.style.width = '6px';
-        resizer.style.height = '100%';
-        resizer.style.cursor = 'col-resize';
-        resizer.style.userSelect = 'none';
-        resizer.style.zIndex = '10'; // Assicura che sia sopra altri elementi della cella
-        th.appendChild(resizer);
+    if (!tableEl || !window.table) return;
+
+    $(tableEl).find('thead th .col-resizer').remove();
+
+    $(tableEl).find('thead th').each(function () {
+        const th = this;
+        const colId = $(th).attr('data-col-id');
+        if (!colId || $(th).hasClass('no-resize')) return; // Aggiunta classe 'no-resize' per colonne non ridimensionabili
+
+        $(th).css('position', 'relative');
+        const resizer = $('<div>').addClass('col-resizer').css({
+            position: 'absolute',
+            top: 0,
+            right: '-3px',
+            width: '6px',
+            height: '100%',
+            cursor: 'col-resize',
+            userSelect: 'none',
+            zIndex: 10
+        }).appendTo(th);
 
         let startX, startWidth;
         const onMouseMove = (e2) => {
-            const newWidth = Math.max(40, startWidth + (e2.pageX - startX));
-            th.style.width = newWidth + 'px';
-            th.style.minWidth = newWidth + 'px';
-            th.style.maxWidth = newWidth + 'px';
+            e2.preventDefault();
+            let newWidth = Math.max(40, startWidth + (e2.pageX - startX));
+            $(th).css('width', newWidth + 'px');
+            $(th).css('min-width', newWidth + 'px');
         };
 
         const onMouseUp = () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.body.style.cursor = '';
-            tableEl.classList.remove('resizing-columns');
-            // tableEl.style.pointerEvents = ''; // Rimosso, causava problemi
+            $(document).off('mousemove', onMouseMove);
+            $(document).off('mouseup', onMouseUp);
+            $('body').css('cursor', '');
+            $(tableEl).removeClass('resizing-columns');
+
             saveColumnWidths(tableSelector);
             if (window.table) {
-                window.table.columns.adjust().draw(false); // Ridisegna senza resettare la paginazione
+                window.table.columns.adjust();
+                loadColumnWidths(tableSelector);
             }
         };
 
-        resizer.addEventListener('mousedown', function (e) {
+        resizer.on('mousedown', function (e) {
             e.preventDefault();
             e.stopPropagation();
             startX = e.pageX;
-            startWidth = th.offsetWidth;
-            document.body.style.cursor = 'col-resize';
-            tableEl.classList.add('resizing-columns');
-            // tableEl.style.pointerEvents = 'none'; // Rimosso, causava problemi
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp, { once: true });
+            startWidth = $(th).outerWidth(); // Usa outerWidth per una misurazione più precisa
+            $('body').css('cursor', 'col-resize');
+            $(tableEl).addClass('resizing-columns');
+            $(document).on('mousemove', onMouseMove);
+            $(document).on('mouseup', onMouseUp);
         });
     });
 }
 
-function setColumnsAutosize(tableSelector) {
+function setColumnsAutosize(tableSelector, preventDraw = false) {
     const tableEl = document.querySelector(tableSelector);
-    if (!tableEl) return;
-    const thEls = tableEl.querySelectorAll('thead th');
-    thEls.forEach(th => {
-        th.style.width = ''; 
-        th.style.minWidth = ''; 
-        th.style.maxWidth = '';
+    if (!tableEl || !window.table) return;
+    $(tableEl).addClass('autosize-mode');
+    $(tableEl).find('thead th').each(function () {
+        $(this).css('width', '');
+        $(this).css('min-width', '');
     });
-    // DataTables dovrebbe ridisegnare le colonne automaticamente, ma forziamo un aggiustamento
     if (window.table) {
-        window.table.columns.adjust().draw(false);
+        if (preventDraw) {
+            window.table.columns.adjust();
+        } else {
+            window.table.columns.adjust().draw(false);
+        }
     }
-    // Non è necessario iterare sulle celle del corpo per resettare gli stili, DataTables lo gestisce
+    // loadColumnWidths(tableSelector); // NON va chiamato in autosize
 }
 
-function setColumnsFixedWrap(tableSelector) {
+function setColumnsFixedWrap(tableSelector, preventDraw = false) {
     const tableEl = document.querySelector(tableSelector);
-    if (!tableEl) return;
-    const thEls = tableEl.querySelectorAll('thead th');
-    thEls.forEach(th => {
-        th.style.width = '150px'; 
-        th.style.minWidth = '150px'; 
-        th.style.maxWidth = '150px';
-        // Per il wrapping, DataTables dovrebbe gestire questo tramite CSS sulla tabella o sulle celle
-        // Ma se necessario, si può aggiungere qui:
-        // th.style.whiteSpace = 'normal'; 
+    if (!tableEl || !window.table) return;
+    $(tableEl).removeClass('autosize-mode');
+    const fixedWidth = '150px';
+    $(tableEl).find('thead th').each(function () {
+        $(this).css('width', fixedWidth);
+        $(this).css('min-width', fixedWidth);
     });
-    // Applica anche alle celle del corpo se necessario, ma DataTables dovrebbe farlo
     if (window.table) {
-        window.table.columns.adjust().draw(false);
+        if (preventDraw) {
+            window.table.columns.adjust();
+        } else {
+            window.table.columns.adjust().draw(false);
+        }
     }
+    loadColumnWidths(tableSelector); // Ripristina larghezze personalizzate SOLO in fixedwrap
 }
 
-function applyColumnViewMode(tableSelector) {
+function applyColumnViewMode(tableSelector, preventDraw = false) {
     const tableEl = document.querySelector(tableSelector);
     if (!tableEl) return;
-    const tableWrapper = tableEl.closest('.dataTables_scrollBody') || tableEl.closest('.dataTables_wrapper') || tableEl.parentElement;
-    const scrollLeft = tableWrapper ? tableWrapper.scrollLeft : 0;
+
+    const tableWrapper = $(tableEl).closest('.dataTables_scrollBody, .table-wrapper-fix').first();
+    // Salva la posizione di scroll solo se diversa da zero
+    const prevScrollLeft = tableWrapper.length ? tableWrapper.scrollLeft() : null;
 
     if (columnViewMode === 'autosize') {
-        setColumnsAutosize(tableSelector);
+        setColumnsAutosize(tableSelector, preventDraw);
     } else {
-        setColumnsFixedWrap(tableSelector);
+        setColumnsFixedWrap(tableSelector, preventDraw);
     }
 
-    if (tableWrapper) {
-        // Ripristina la posizione di scroll dopo un breve ritardo per permettere il ridisegno
-        setTimeout(() => { tableWrapper.scrollLeft = scrollLeft; }, 0);
+    // Ripristina la posizione di scroll solo se era diversa da zero
+    if (tableWrapper.length && prevScrollLeft && prevScrollLeft > 0) {
+        setTimeout(() => { tableWrapper.scrollLeft(prevScrollLeft); }, 50);
     }
 }
 
@@ -988,110 +980,32 @@ function addColumnViewModeButton() {
             <label class="form-check-label small ms-1" for="toggle-column-view-mode">Colonne autosize</label>
         </div>`;
     const $switch = $(switchHtml);
-    const $editModeToggle = $('#toggle-edit-mode').parent();
-    if ($editModeToggle.length) {
-        $editModeToggle.after($switch);
+
+    const $editModeToggleParent = $('#toggle-edit-mode').parent();
+    if ($editModeToggleParent.length) {
+        $editModeToggleParent.after($switch);
     } else {
-        // Fallback se il toggle di modifica non è presente
         $('#dt-buttons-container').before($switch);
     }
-    
+
     const toggleInput = $switch.find('input');
     const toggleLabel = $switch.find('label');
 
-    // Imposta lo stato iniziale dello switch in base a columnViewMode
-    if (columnViewMode === 'fixedwrap') {
-        toggleInput.prop('checked', true);
-        toggleLabel.text('Colonne tutte uguali');
-    } else {
-        toggleInput.prop('checked', false);
-        toggleLabel.text('Colonne autosize');
-    }
+    toggleInput.prop('checked', columnViewMode === 'fixedwrap');
+    toggleLabel.text(columnViewMode === 'fixedwrap' ? 'Colonne tutte uguali' : 'Colonne autosize');
 
     toggleInput.on('change', function () {
-        if (this.checked) {
-            columnViewMode = 'fixedwrap';
-            toggleLabel.text('Colonne tutte uguali');
-        } else {
-            columnViewMode = 'autosize';
-            toggleLabel.text('Colonne autosize');
-        }
-        applyColumnViewMode('#gestione-gs-table');
+        columnViewMode = this.checked ? 'fixedwrap' : 'autosize';
+        toggleLabel.text(this.checked ? 'Colonne tutte uguali' : 'Colonne autosize');
+        applyColumnViewMode('#gestione-gs-table', false);
     });
 }
 
 function afterDataTableInit() {
     console.log('[afterDataTableInit] Chiamata.');
-    // applyCellOverflowStyles('#gestione-gs-table'); // Funzione non definita, commentata
     enableColumnResize('#gestione-gs-table');
-    // enableCellTooltip('#gestione-gs-table'); // Funzione non definita, commentata
     loadColumnWidths('#gestione-gs-table');
-    applyColumnViewMode('#gestione-gs-table');
+    applyColumnViewMode('#gestione-gs-table', true);
     addColumnViewModeButton();
+    setTimeout(window.updateCustomScrollHeader, 200); // Leggero ritardo per sicurezza
 }
-
-// Evento init.dt di DataTables: viene chiamato una volta che la tabella è completamente inizializzata
-$(document).on('init.dt', function(e, settings) {
-    if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
-        console.log('[document/init.dt] Evento init.dt per #gestione-gs-table scatenato.');
-        patchRicercaSoloInvio();
-        afterDataTableInit(); 
-    }
-});
-
-// Evento draw.dt di DataTables: viene chiamato ad ogni ridisegno della tabella
-$(document).on('draw.dt', function(e, settings) {
-    if (settings.nTable && settings.nTable.id === 'gestione-gs-table') {
-        // La logica per lo scrollbar è ora gestita DENTRO initComplete, agganciata all'evento draw.dt dell'API DataTables
-        // Questo handler $(document).on('draw.dt'...) è per eventi jQuery generici, non specifici dell'istanza DataTables
-        // Quindi, la logica di update dello scrollbar qui potrebbe essere ridondante o conflittuale se non gestita attentamente.
-        // È meglio che updateScrollHeader sia chiamata dall'handler specifico dell'istanza DataTables.
-
-        // Gestione info DataTables
-        const $wrapper = $(settings.nTable).closest('.dataTables_wrapper');
-        $wrapper.find('.dataTables_info').hide();
-        $wrapper.find('.dataTables_info:last-of-type').show(); 
-
-        // Gestione paginazione
-        const $paginate = $wrapper.find('.dataTables_paginate');
-        const $tableWrapperFix = $('.table-wrapper-fix'); // Usiamo la classe definita per il contenitore scrollabile
-        if ($paginate.length && $tableWrapperFix.length) {
-            // Invece di spostare la paginazione, assicuriamoci che sia visibile e stilizzata correttamente
-            // $tableWrapperFix.append($paginate); // Questa riga è stata commentata perché potrebbe causare problemi di layout
-        }
-
-        // Gestione modalità colonne
-        applyColumnViewMode('#gestione-gs-table'); // Assicura che la modalità colonne sia applicata dopo ogni disegno
-        const switchInput = document.getElementById('toggle-column-view-mode');
-        if (switchInput) {
-            switchInput.checked = (columnViewMode === 'fixedwrap');
-            const label = switchInput.parentElement.querySelector('label');
-            if (label) {
-                label.textContent = columnViewMode === 'fixedwrap' ? 'Colonne tutte uguali' : 'Colonne autosize';
-            }
-        }
-    }
-});
-
-document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-        const rtcFilter = document.getElementById('rtc-filter');
-        if (rtcFilter) {
-            rtcFilter.value = '';
-            // Disparare un evento 'change' per far reagire DataTables se necessario
-            $(rtcFilter).trigger('change'); 
-        }
-        const searchInput = document.getElementById('generic-search');
-        if (searchInput) {
-            searchInput.value = '';
-            // Disparare un evento 'keyup' o 'change' per far reagire DataTables se necessario
-             if (window.table) { window.table.search('').draw(); } 
-        }
-        document.querySelectorAll('.column-filter').forEach(input => {
-            $(input).val('').trigger('keyup'); // Simula un keyup per far scattare il filtro DataTables
-        });
-        $('#advanced-filters-panel').removeClass('show');
-        $('.advanced-filters-overlay').removeClass('show');
-        // Non è necessario ridisegnare esplicitamente la tabella qui se i filtri lo fanno già
-    }
-});
