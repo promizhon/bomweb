@@ -3,10 +3,12 @@ from fastapi.testclient import TestClient
 from ordini_materiale_articoli import router, get_db
 from fastapi import FastAPI, Depends
 from ordini_servizi import router as servizi_router
+from ordini_servizi_ge import router as servizi_ge_router
 
 app = FastAPI()
 app.include_router(router)
 app.include_router(servizi_router)
+app.include_router(servizi_ge_router)
 
 class DummyQuery:
     def __init__(self):

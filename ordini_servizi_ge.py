@@ -120,7 +120,7 @@ class DataManager:
 
     def get_total_records(self) -> int:
         query = text(f"SELECT COUNT(*) FROM `{self.table_name}`")
-        result = self.db.execute(query).scalar_one_or_none()
+        result = self.db.execute(query).scalar()
         return result if result is not None else 0
 
 
@@ -163,7 +163,7 @@ class DataManager:
 
             total_records = self.get_total_records()
             count_query = self.query_builder.build_count_query(where_sql)
-            records_filtered_result = self.db.execute(count_query, query_params).scalar_one_or_none()
+            records_filtered_result = self.db.execute(count_query, query_params).scalar()
             records_filtered = records_filtered_result if records_filtered_result is not None else 0
 
 

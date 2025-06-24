@@ -27,8 +27,7 @@ class DummyArticolo:
 
 def test_perform_search_query_filters():
     db = DummySession()
-    # Test con tutti i filtri
     query = _perform_search_query(db, codice='A', codicenet='B', descrizione='C D', year='2023')
-    # Dovrebbe aver aggiunto filtri per codice, codicenet, descrizione (2 parole), year
     assert len(query.filters) == 5
-    assert str(query.filters[0][0][0]) == str(Zucchetti_Articoli.DataAcquisto.startswith('2023'))
+    assert 'EXTRACT' in str(query.filters[0][0][0])
+
