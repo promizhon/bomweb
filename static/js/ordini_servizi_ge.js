@@ -488,18 +488,19 @@ async function initializeDataTable() {
                 // Aggancia l'evento draw.dt all'API di DataTables per aggiornare lo scroll orizzontale
                 if (api && typeof api.on === 'function') {
                     console.log('[initializeDataTable/initComplete] Agganciando evento draw.dt a DataTables API (api) per scroll.');
-                    api.on('draw.dt', function() {
+                    api.off('draw.dt.scrollHeader');
+                    api.on('draw.dt.scrollHeader', function() {
                         console.log('[initializeDataTable/initComplete] Evento draw.dt di DataTables scatenato (per scroll).');
-                        const scrollHeaderJQ = $('.table-scroll-header'); 
+                        const scrollHeaderJQ = $('.table-scroll-header');
                         const tableWrapperJQ = $('.table-wrapper-fix');
                         const gestioneGsTableJQ = $('#gestione-gs-table');
-                        if(gestioneGsTableJQ.length && gestioneGsTableJQ[0] && scrollHeaderJQ.length && tableWrapperJQ.length){
+                        if (gestioneGsTableJQ.length && gestioneGsTableJQ[0] && scrollHeaderJQ.length && tableWrapperJQ.length) {
                             const tableElement = gestioneGsTableJQ[0];
-                            const tableWidth = gestioneGsTableJQ.outerWidth(); // Larghezza visibile dell'elemento tabella
+                            const wrapperWidth = tableWrapperJQ.outerWidth(); // Larghezza visibile del contenitore scrollabile
                             const scrollWidth = tableElement.scrollWidth; // Larghezza totale del contenuto scrollabile
-                            console.log('[draw.dt - scrollHandler] Valori: table.outerWidth():', tableWidth, '| tableElement.scrollWidth:', scrollWidth);
+                            console.log('[draw.dt - scrollHandler] Valori: wrapperWidth:', wrapperWidth, '| tableElement.scrollWidth:', scrollWidth);
                             $('.table-scroll-header-inner').css('width', scrollWidth + 'px');
-                            if (scrollWidth > tableWidth && tableWidth > 0) {
+                            if (scrollWidth > wrapperWidth && wrapperWidth > 0) {
                                 console.log('[draw.dt - scrollHandler] -> Mostrando scrollHeader.');
                                 scrollHeaderJQ.css('display', 'block');
                             } else {
@@ -632,16 +633,16 @@ function syncHorizontalScroll() {
             console.error('[updateCustomScrollHeader] Elemento DOM della tabella #gestione-gs-table non trovato tramite jQuery.');
             return;
         }
-        const tableElement = tablejQuery[0]; 
-        const tableOuterWidth = tablejQuery.outerWidth(); 
-        const tableScrollWidth = tableElement.scrollWidth; 
+        const tableElement = tablejQuery[0];
+        const wrapperWidth = tableWrapper.outerWidth();
+        const tableScrollWidth = tableElement.scrollWidth;
         
         console.log('[updateCustomScrollHeader] --- ESEGUITA ---');
-        console.log('[updateCustomScrollHeader] Valori: tablejQuery.outerWidth():', tableOuterWidth, '| tableElement.scrollWidth:', tableScrollWidth);
+        console.log('[updateCustomScrollHeader] Valori: wrapperWidth:', wrapperWidth, '| tableElement.scrollWidth:', tableScrollWidth);
         
         $('.table-scroll-header-inner').css('width', tableScrollWidth + 'px');
         
-        if (tableScrollWidth > tableOuterWidth && tableOuterWidth > 0) { 
+        if (tableScrollWidth > wrapperWidth && wrapperWidth > 0) {
             console.log('[updateCustomScrollHeader] -> Mostrando scrollHeader.');
             scrollHeader.css('display', 'block');
         } else {

@@ -6,6 +6,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect # Mantenuto per potenziale uso futuro o altre route
 from database_config import get_db, APP_MODE
+
+# Esporta gestori e utilità definiti in ordini_servizi_ge per retrocompatibilità
+from ordini_servizi_ge import DataManager, FilterManager
 from urllib.parse import unquote # Mantenuto per potenziale uso futuro
 import pandas as pd # Mantenuto per potenziale uso futuro
 import io # Mantenuto per potenziale uso futuro
@@ -55,3 +58,10 @@ async def ordini_servizi_page(request: Request):
 # e la route "/ordini_servizi" fosse gestita altrove o non più necessaria da questo specifico router,
 # si potrebbe considerare di rimuovere l'inclusione di questo router in main.py.
 # Per ora, lo mantengo con la route base.
+
+# Esporta esplicitamente gli elementi utilizzati dai test
+__all__ = [
+    'router',
+    'DataManager',
+    'FilterManager',
+]
