@@ -895,9 +895,10 @@ function enableColumnResize(tableSelector) {
             $('body').css('cursor', '');
             $(tableEl).removeClass('resizing-columns');
 
+            // Salva e ripristina le larghezze senza forzare DataTables
             saveColumnWidths(tableSelector);
             if (window.table) {
-                window.table.columns.adjust();
+                // window.table.columns.adjust(); // Evitato per mantenere la larghezza impostata
                 loadColumnWidths(tableSelector);
             }
         };
