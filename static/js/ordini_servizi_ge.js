@@ -931,7 +931,7 @@ function setColumnsAutosize(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    // loadColumnWidths(tableSelector); // NON va chiamato in autosize
+    loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate anche in autosize
 }
 
 function setColumnsFixedWrap(tableSelector, preventDraw = false) {
@@ -950,7 +950,7 @@ function setColumnsFixedWrap(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    loadColumnWidths(tableSelector); // Ripristina larghezze personalizzate SOLO in fixedwrap
+    loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate
 }
 
 function applyColumnViewMode(tableSelector, preventDraw = false) {
