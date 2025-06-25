@@ -931,7 +931,9 @@ function setColumnsAutosize(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate anche in autosize
+    if (localStorage.getItem(COLUMN_WIDTHS_KEY)) {
+        loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate anche in autosize
+    }
 }
 
 function setColumnsFixedWrap(tableSelector, preventDraw = false) {
@@ -950,7 +952,9 @@ function setColumnsFixedWrap(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate
+    if (localStorage.getItem(COLUMN_WIDTHS_KEY)) {
+        loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate
+    }
 }
 
 function applyColumnViewMode(tableSelector, preventDraw = false) {
