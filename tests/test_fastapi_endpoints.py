@@ -35,6 +35,7 @@ class DummyQuery:
             GiacenzaBologna = 4
             GiacenzaRoma = 5
             Importo = 10
+            Sconto = 0
         return [Item()]
     def count(self):
         return 1
