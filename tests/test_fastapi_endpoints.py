@@ -24,6 +24,7 @@ class DummyQuery:
     def limit(self, x):
         return self
     def all(self):
+
         class Item:
             KAIDGUID = '1'
             KACODRIC = 'A'
@@ -34,8 +35,9 @@ class DummyQuery:
             GiacenzaGenova = 3
             GiacenzaBologna = 4
             GiacenzaRoma = 5
-            Sconto = 10
             Importo = 10
+            Sconto = 0
+
         return [Item()]
     def count(self):
         return 1
