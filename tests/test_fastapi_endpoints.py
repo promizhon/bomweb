@@ -24,6 +24,7 @@ class DummyQuery:
     def limit(self, x):
         return self
     def all(self):
+
         class Item:
             KAIDGUID = '1'
             KACODRIC = 'A'
@@ -36,6 +37,7 @@ class DummyQuery:
             GiacenzaRoma = 5
             Importo = 10
             Sconto = 0
+
         return [Item()]
     def count(self):
         return 1
@@ -68,6 +70,7 @@ def test_api_materiali_search():
     data = response.json()
     assert "data" in data
     assert isinstance(data["data"], list)
+    assert data["data"][0]["Importo"] == 9.0
 
 
 def test_get_servizi_months():

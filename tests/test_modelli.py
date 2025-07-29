@@ -22,6 +22,7 @@ def test_zucchetti_articoli_creation():
         GiacenzaGenova=3.0,
         GiacenzaBologna=4.0,
         GiacenzaRoma=5.0,
+        Sconto=5.0,
         Importo=10.0
     )
     assert art.KAIDGUID == '1'
@@ -34,6 +35,7 @@ def test_zucchetti_articoli_creation():
     assert art.GiacenzaGenova == 3.0
     assert art.GiacenzaBologna == 4.0
     assert art.GiacenzaRoma == 5.0
+    assert art.Sconto == 5.0
     assert art.Importo == 10.0
 
 
