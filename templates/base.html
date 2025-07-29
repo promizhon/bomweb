@@ -115,20 +115,29 @@
     </div>
 
     <!-- JavaScript comuni -->
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="/static/libs/jquery-3.7.0.min.js"></script>
+    <script>
+        if (typeof window.jQuery === 'undefined') {
+            document.write('<script src="https://code.jquery.com/jquery-3.7.0.min.js"><\/script>');
+        }
+    </script>
     <script src="/static/js/main.js?v={{ STATIC_VERSION }}"></script>
 
     <!-- DataTables CSS -->
-    <link rel="stylesheet"
-        href="https://cdn.datatables.net/v/bs5/dt-1.13.8/b-2.4.2/b-colvis-2.4.2/b-html5-2.4.2/b-print-2.4.2/r-2.5.0/sl-1.7.0/datatables.min.css" />
+    <link rel="stylesheet" href="/static/libs/datatables.min.css?v={{ STATIC_VERSION }}">
     <!-- ColReorder CSS -->
     <!-- <link rel="stylesheet" href="https://cdn.datatables.net/colreorder/1.6.2/css/colReorder.dataTables.min.css" /> -->
 
     <!-- DataTables JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <script
-        src="https://cdn.datatables.net/v/bs5/dt-1.13.8/b-2.4.2/b-colvis-2.4.2/b-html5-2.4.2/b-print-2.4.2/r-2.5.0/sl-1.7.0/datatables.min.js"></script>
+    <script src="/static/libs/datatables.min.js"></script>
+    <script>
+        if (typeof window.jQuery === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+            document.write('<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-1.13.8/b-2.4.2/b-colvis-2.4.2/b-html5-2.4.2/b-print-2.4.2/r-2.5.0/sl-1.7.0/datatables.min.css">');
+            document.write('<script src="https://cdn.datatables.net/v/bs5/dt-1.13.8/b-2.4.2/b-colvis-2.4.2/b-html5-2.4.2/b-print-2.4.2/r-2.5.0/sl-1.7.0/datatables.min.js"><\/script>');
+        }
+    </script>
     <!-- ColReorder JS -->
     <!-- <script src="https://cdn.datatables.net/colreorder/1.6.2/js/dataTables.colReorder.min.js"></script> -->
 
