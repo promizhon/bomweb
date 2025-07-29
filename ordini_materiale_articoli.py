@@ -122,8 +122,10 @@ async def get_data(request: Request, db: Session = Depends(get_db)):
             'Qta Bologna': round(float(item.GiacenzaBologna or 0), 2),
             'Qta Roma': round(float(item.GiacenzaRoma or 0), 2),
             'Importo': round(
-                float(item.Importo or 0) * (1 - float(item.Sconto or 0) / 100)
-                if item.Sconto not in (None, 0) else float(item.Importo or 0), 2)
+                float(item.Importo or 0)
+                * (1 - float(getattr(item, 'Sconto', 0) or 0) / 100),
+                2
+            )
         } for item in items]
 
         return {
@@ -167,8 +169,10 @@ async def export_data(
             'Qta Bologna': round(float(item.GiacenzaBologna or 0), 2),
             'Qta Roma': round(float(item.GiacenzaRoma or 0), 2),
             'Importo': round(
-                float(item.Importo or 0) * (1 - float(item.Sconto or 0) / 100)
-                if item.Sconto not in (None, 0) else float(item.Importo or 0), 2)
+                float(item.Importo or 0)
+                * (1 - float(getattr(item, 'Sconto', 0) or 0) / 100),
+                2
+            )
         } for item in items]
 
         df = pd.DataFrame(data)

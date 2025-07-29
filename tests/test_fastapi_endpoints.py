@@ -34,6 +34,7 @@ class DummyQuery:
             GiacenzaGenova = 3
             GiacenzaBologna = 4
             GiacenzaRoma = 5
+            Sconto = 10
             Importo = 10
         return [Item()]
     def count(self):
@@ -67,6 +68,7 @@ def test_api_materiali_search():
     data = response.json()
     assert "data" in data
     assert isinstance(data["data"], list)
+    assert data["data"][0]["Importo"] == 9.0
 
 
 def test_get_servizi_months():

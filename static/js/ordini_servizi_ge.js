@@ -1021,7 +1021,9 @@ function setColumnsAutosize(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    // loadColumnWidths(tableSelector); // NON va chiamato in autosize
+    if (localStorage.getItem(COLUMN_WIDTHS_KEY)) {
+        loadColumnWidths(tableSelector);
+    }
 }
 
 function setColumnsFixedWrap(tableSelector, preventDraw = false) {
