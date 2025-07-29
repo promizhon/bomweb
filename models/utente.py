@@ -16,3 +16,4 @@ class UtenteRuoliPermessi(Base):
 
     ruolo_id = Column(Integer, primary_key=True)
     colonne_ordini_servizio_ge = Column(Text)
+    colonne_ordini_servizio_ge_edit = Column(Text)

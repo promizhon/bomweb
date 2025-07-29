@@ -1,6 +1,6 @@
 from datetime import datetime
 from models.utente import Utente
-from models.zucchetti import Zucchetti_Articoli
+from models.zucchetti_articoli import Zucchetti_Articoli
 from models.carrefour_log import CarrefourLog
 
 

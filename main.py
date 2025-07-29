@@ -17,11 +17,8 @@ from ordini_servizi import router as servizi_router
 # Importa il nuovo router per ordini_servizi_ge
 from ordini_servizi_ge import router as servizi_ge_router
 from auth import router as auth_router
-from fastapi.responses import FileResponse
-from typing import Optional
-import pandas as pd
-import tempfile
-import os
+
+from protocolli import router as protocolli_router
 
 app = FastAPI()
 
@@ -48,6 +45,7 @@ app.include_router(auth_router)
 app.include_router(servizi_router)
 # Includi il nuovo router nell'applicazione
 app.include_router(servizi_ge_router)
+app.include_router(protocolli_router)
 
 @app.get("/")
 async def index(request: Request, db: Session = Depends(get_db)):

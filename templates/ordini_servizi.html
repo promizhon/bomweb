@@ -5,7 +5,7 @@
 {% block head_extra %}
 <link rel="stylesheet" type="text/css"
     href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.bootstrap5.min.css" />
-<link rel="stylesheet" href="{{ url_for('static', path='css/ordini_servizi_ge.css') }}">
+<link rel="stylesheet" href="/static/css/ordini_servizi_ge.css?v={{ STATIC_VERSION }}">
 {% endblock %}
 
 {% block content %}
@@ -31,5 +31,5 @@
 {% block script_extra %}
 <script type="text/javascript"
     src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
-<script src="{{ url_for('static', path='js/ordini_servizi_ge.js') }}"></script>
+<script src="/static/js/ordini_servizi_ge.js?v={{ STATIC_VERSION }}"></script>
 {% endblock %}

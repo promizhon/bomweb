@@ -48,5 +48,31 @@
 </div>
 {% endblock %}
 {% block script_extra %}
-<script>applyThemeSelectorLogic();</script>
+<script>
+    async function caricaTemaUtente() {
+        const res = await fetch('/impostazioni/api/tema');
+        const data = await res.json();
+        const tema = data.tema || 'light';
+        document.getElementById('theme-select').value = tema;
+        document.documentElement.setAttribute('data-theme', tema);
+        localStorage.setItem('theme', tema);
+    }
+
+    async function salvaTemaUtente(tema) {
+        await fetch('/impostazioni/api/tema', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tema })
+        });
+        document.documentElement.setAttribute('data-theme', tema);
+        localStorage.setItem('theme', tema);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        caricaTemaUtente();
+        document.getElementById('theme-select').addEventListener('change', function (e) {
+            salvaTemaUtente(e.target.value);
+        });
+    });
+</script>
 {% endblock %}

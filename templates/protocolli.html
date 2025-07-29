@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Protocolli{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/protocolli.css?v={{ STATIC_VERSION }}">
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Protocolli</h2>
+<ul class="tabs" id="protocolliTab">
+    <li class="tab-item">
+        <button class="tab-btn active" id="crea-protocollo-tab" data-tab="crea" type="button">Crea Protocollo</button>
+    </li>
+</ul>
+<div id="protocolli-content-area">
+    {% include "crea_protocollo.html" %}
+</div>
+{% endblock %}
+
+{% block script_extra %}
+<script src="/static/js/protocolli.js?v={{ STATIC_VERSION }}"></script>
+{% endblock %}

@@ -1,5 +1,13 @@
-(function() {
+(function () {
     console.log('materiali.js caricato ed eseguito.');
+
+    function waitForDataTablesAndInit() {
+        if (typeof $ === 'undefined' || !$.fn.DataTable) {
+            setTimeout(waitForDataTablesAndInit, 100);
+            return;
+        }
+        initMaterialiDataTable();
+    }
 
     function caricaTabMateriale(tabName, btn) {
         if (btn) {
@@ -22,7 +30,7 @@
             .then(html => {
                 contentArea.innerHTML = html;
                 if (tabName === 'articoli') {
-                    initMaterialiDataTable();
+                    waitForDataTablesAndInit();
                 }
             })
             .catch(error => {
@@ -40,6 +48,9 @@
             $('#ordiniTable').DataTable().destroy();
         }
 
+        // Variabile di stato per bloccare il primo caricamento
+        let ricercaEseguita = false;
+
         console.log('Inizializzazione DataTables...');
         const table = $('#ordiniTable').DataTable({
             searching: false,
@@ -52,19 +63,21 @@
                 url: '/api/materiali/search',
                 type: 'POST',
                 contentType: 'application/json',
-                data: function(d) {
-                    const filters = {
-                        draw: d.draw,
-                        start: d.start,
-                        length: d.length,
-                        codice: $('#codice').val()?.trim() || '',
-                        codicenet: $('#codicenet').val()?.trim() || '',
-                        descrizione: $('#descrizione').val()?.trim() || '',
-                        year: $('#year').val() || ''
-                    };
-                    return JSON.stringify(filters);
+                data: function (d) {
+                    d.codice = $('#codice').val()?.trim() || '';
+                    d.codicenet = $('#codicenet').val()?.trim() || '';
+                    d.descrizione = $('#descrizione').val()?.trim() || '';
+                    d.year = $('#year').val() || '';
+                    d.ricercaEseguita = ricercaEseguita;
+                    return JSON.stringify(d);
                 },
-                dataSrc: 'data'
+                dataSrc: function (json) {
+                    // Se non è stata eseguita una ricerca, mostra tabella vuota
+                    if (!ricercaEseguita) {
+                        return [];
+                    }
+                    return json.data;
+                }
             },
             columns: [
                 { data: null, defaultContent: '', orderable: false, className: 'dtr-control' },
@@ -72,40 +85,60 @@
                 { data: 'codice' },
                 { data: 'codicenet' },
                 { data: 'descrizione' },
-                { 
+                {
                     data: 'Qta Torino',
-                    render: function(data) {
-                        return parseFloat(data).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    render: function (data) {
+                        const value = parseFloat(data);
+                        if (isNaN(value) || value === 0) return '';
+                        let cls = '';
+                        if (value < 0) cls = 'giacenza-negativa';
+                        return `<span class=\"${cls}\">${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
                     }
                 },
-                { 
+                {
                     data: 'Qta Milano',
-                    render: function(data) {
-                        return parseFloat(data).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    render: function (data) {
+                        const value = parseFloat(data);
+                        if (isNaN(value) || value === 0) return '';
+                        let cls = '';
+                        if (value < 0) cls = 'giacenza-negativa';
+                        return `<span class=\"${cls}\">${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
                     }
                 },
-                { 
+                {
                     data: 'Qta Genova',
-                    render: function(data) {
-                        return parseFloat(data).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    render: function (data) {
+                        const value = parseFloat(data);
+                        if (isNaN(value) || value === 0) return '';
+                        let cls = '';
+                        if (value < 0) cls = 'giacenza-negativa';
+                        return `<span class=\"${cls}\">${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
                     }
                 },
-                { 
+                {
                     data: 'Qta Bologna',
-                    render: function(data) {
-                        return parseFloat(data).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    render: function (data) {
+                        const value = parseFloat(data);
+                        if (isNaN(value) || value === 0) return '';
+                        let cls = '';
+                        if (value < 0) cls = 'giacenza-negativa';
+                        return `<span class=\"${cls}\">${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
                     }
                 },
-                { 
+                {
                     data: 'Qta Roma',
-                    render: function(data) {
-                        return parseFloat(data).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    render: function (data) {
+                        const value = parseFloat(data);
+                        if (isNaN(value) || value === 0) return '';
+                        let cls = '';
+                        if (value < 0) cls = 'giacenza-negativa';
+                        return `<span class=\"${cls}\">${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
                     }
                 },
-                { 
+                {
                     data: 'Importo',
-                    render: function(data) {
-                        return parseFloat(data).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2, style: 'currency', currency: 'EUR'});
+                    render: function (data) {
+                        return parseFloat(data).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, style: 'currency', currency: 'EUR' });
                     }
                 }
             ],
@@ -135,14 +168,15 @@
         });
 
         let searchTimeout;
-        $('#search-filters').on('keyup change', 'input, select', function() {
+        $('#search-filters').on('keyup change', 'input, select', function () {
+            ricercaEseguita = true;
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 table.ajax.reload();
             }, 400);
         });
 
-        $('#exportBtn').on('click', function() {
+        $('#exportBtn').on('click', function () {
             const params = new URLSearchParams({
                 year: $('#year').val() || '',
                 codice: $('#codice').val() || '',

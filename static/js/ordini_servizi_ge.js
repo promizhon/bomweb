@@ -277,8 +277,10 @@ async function initializeDataTable() {
             columnsConfig = columnsData.map((col, idx) => ({
                 data: col.field,
                 title: col.title || col.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                className: col.field === 'id' ? 'editable' : 'editable',
-                visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true)
+                className: col.editable ? 'editable' : 'readonly',
+                visible: typeof col.visible === 'boolean' ? col.visible : (visibleColumnsState.length > 0 ? visibleColumnsState.includes(idx) : true),
+                editable: !!col.editable,
+                validation: col.validation || null
             }));
         }
 
@@ -292,6 +294,13 @@ async function initializeDataTable() {
 
         const headerRow = `<tr>${columnsConfig.map(c => `<th data-col-id="${c.data}">${c.title}</th>`).join('')}</tr>`;
         $('#gestione-gs-table thead').html(headerRow);
+
+        // Calcola gli indici delle colonne per l'ordinamento multiplo richiesto
+        const rtcIdx = columnsConfig.findIndex(c => c.data === 'RTC');
+        const pdvIdx = columnsConfig.findIndex(c => c.data === 'PDV');
+        const dataAperturaIdx = columnsConfig.findIndex(c => c.data === 'DATA_APERTURA_TICKET');
+        const mpvCrfIdx = columnsConfig.findIndex(c => c.data === 'MPV_CRF');
+        const dataInterventoIdx = columnsConfig.findIndex(c => c.data === 'DATA_INTERVENTO');
 
         window.table = $('#gestione-gs-table').DataTable({
             processing: true,
@@ -333,6 +342,13 @@ async function initializeDataTable() {
                     $(row).find('td.editable').css('cursor', 'not-allowed');
                 }
             },
+            order: [
+                [rtcIdx, 'asc'],
+                [pdvIdx, 'asc'],
+                [dataAperturaIdx, 'asc'],
+                [mpvCrfIdx, 'asc'],
+                [dataInterventoIdx, 'asc']
+            ],
             initComplete: function (settings, json) {
                 console.log('[initializeDataTable/initComplete] DataTables initComplete eseguito.');
                 const api = this.api();
@@ -364,13 +380,20 @@ async function initializeDataTable() {
                         $('.column-filter').val('');
                         if (window.table) {
                             window.table.search('').columns().search('').draw();
+                            window.table.order([
+                                [rtcIdx, 'asc'],
+                                [pdvIdx, 'asc'],
+                                [dataAperturaIdx, 'asc'],
+                                [mpvCrfIdx, 'asc'],
+                                [dataInterventoIdx, 'asc']
+                            ]).draw();
                         }
                     });
                 }
 
                 const filtersContainer = $('#column-filters-container');
                 filtersContainer.empty();
-                api.columns().every(function () {
+                api.columns(':visible').every(function () {
                     const column = this;
                     const columnData = column.settings()[0].aoColumns[column.index()].data;
                     const columnTitle = $(column.header()).text();
@@ -510,24 +533,35 @@ async function initializeDataTable() {
             $('#record-count').text(countText);
         });
 
-        $('#gestione-gs-table').off('click', 'td.editable').on('click', 'td.editable', function () {
-            if (!editModeEnabled) {
-                const cell = window.table.cell(this);
+        $('#gestione-gs-table').off('click', 'td.editable, td.readonly').on('click', 'td.editable, td.readonly', function () {
+            const cell = window.table.cell(this);
+            const column = cell.index().column;
+            const colConfig = window.table.settings()[0].aoColumns[column];
+            if (!editModeEnabled || !colConfig.editable) {
                 const originalBg = cell.node().style.backgroundColor;
                 cell.node().style.backgroundColor = '#ffebee';
                 setTimeout(() => cell.node().style.backgroundColor = originalBg, 1000);
                 return;
             }
 
-            const cell = window.table.cell(this);
-            const column = cell.index().column;
             const row = cell.index().row;
             const data = cell.data();
             const rowData = window.table.row(row).data();
             const columnName = window.table.settings()[0].aoColumns[column].data;
+            const validation = colConfig.validation;
 
             let editor;
-            if (columnViewMode === 'autosize') {
+            if (validation && validation.type === 'list' && Array.isArray(validation.values)) {
+                editor = $('<select>')
+                    .addClass('form-select form-select-sm')
+                    .css({ 'width': '100%', 'height': '100%' });
+                editor.append($('<option>').val('').text('— Nessun valore —'));
+                validation.values.forEach(function (val) {
+                    const option = $('<option>').val(val).text(val);
+                    if (val === data) option.attr('selected', 'selected');
+                    editor.append(option);
+                });
+            } else if (columnViewMode === 'autosize') {
                 editor = $('<textarea>')
                     .addClass('form-control form-control-sm autosize-editor')
                     .val(data)
@@ -545,7 +579,6 @@ async function initializeDataTable() {
                         'font-family': 'inherit',
                         'font-size': 'inherit'
                     });
-                // Adatta l'altezza al contenuto
                 setTimeout(() => {
                     editor[0].style.height = 'auto';
                     editor[0].style.height = editor[0].scrollHeight + 'px';
@@ -565,38 +598,74 @@ async function initializeDataTable() {
             $(cell.node()).css('position', 'relative');
             editor.on('click', function (e) { e.stopPropagation(); });
 
-            editor.off('blur keypress').on('blur keypress', function (e) {
-                if (e.type === 'keypress' && e.which !== 13) return;
-                const newValue = $(this).val();
-                if (newValue === data) {
-                    $(cell.node()).empty().text(data);
+            editor.off('blur keypress change').on('blur keypress change', function (e) {
+                if (validation && validation.type === 'list') {
+                    if (e.type === 'change' || e.type === 'blur') {
+                        const newValue = $(this).val();
+                        if (newValue === data) {
+                            $(cell.node()).empty().text(data);
+                            return;
+                        }
+                        fetch('/api/servizi/ge/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pk: rowData.ID, field: columnName, value: newValue })
+                        })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Errore nella risposta del server');
+                                return response.json();
+                            })
+                            .then(result => {
+                                if (result.status === 'success') {
+                                    $(cell.node()).empty();
+                                    cell.data(newValue).draw(false);
+                                } else {
+                                    throw new Error(result.message || 'Errore durante l\'aggiornamento');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Errore:', error);
+                                $(cell.node()).empty();
+                                cell.data(data).draw(false);
+                                if (error.message !== 'Errore nella risposta del server') {
+                                    alert(error.message);
+                                }
+                            });
+                    }
+                } else if (e.type === 'keypress' && e.which !== 13) {
                     return;
-                }
-                fetch('/api/servizi/ge/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pk: rowData.ID, field: columnName, value: newValue })
-                })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Errore nella risposta del server');
-                        return response.json();
+                } else if (e.type === 'blur' || (e.type === 'keypress' && e.which === 13)) {
+                    const newValue = $(this).val();
+                    if (newValue === data) {
+                        $(cell.node()).empty().text(data);
+                        return;
+                    }
+                    fetch('/api/servizi/ge/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pk: rowData.ID, field: columnName, value: newValue })
                     })
-                    .then(result => {
-                        if (result.status === 'success') {
+                        .then(response => {
+                            if (!response.ok) throw new Error('Errore nella risposta del server');
+                            return response.json();
+                        })
+                        .then(result => {
+                            if (result.status === 'success') {
+                                $(cell.node()).empty();
+                                cell.data(newValue).draw(false);
+                            } else {
+                                throw new Error(result.message || 'Errore durante l\'aggiornamento');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Errore:', error);
                             $(cell.node()).empty();
-                            cell.data(newValue).draw(false);
-                        } else {
-                            throw new Error(result.message || 'Errore durante l\'aggiornamento');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Errore:', error);
-                        $(cell.node()).empty();
-                        cell.data(data).draw(false);
-                        if (error.message !== 'Errore nella risposta del server') {
-                            alert(error.message);
-                        }
-                    });
+                            cell.data(data).draw(false);
+                            if (error.message !== 'Errore nella risposta del server') {
+                                alert(error.message);
+                            }
+                        });
+                }
             });
             $(cell.node()).html(editor);
             editor.focus();
@@ -709,10 +778,20 @@ async function initializeGestioneGSControls() {
             window.table.ajax.reload(() => {
                 if (loadingIndicator) loadingIndicator.style.display = 'none';
                 if (tableElement.length) tableElement.show();
+                // Se la barra di scroll superiore non esiste più, la ricreo
+                if (!$('.table-scroll-header').length) {
+                    $('.table-wrapper-fix').before('<div class="table-scroll-header"><div class="table-scroll-header-inner"></div></div>');
+                }
+                syncHorizontalScroll();
                 // window.updateCustomScrollHeader(); // Chiamato da draw event
             });
         } else {
             await initializeDataTable();
+            // Se la barra di scroll superiore non esiste più, la ricreo
+            if (!$('.table-scroll-header').length) {
+                $('.table-wrapper-fix').before('<div class="table-scroll-header"><div class="table-scroll-header-inner"></div></div>');
+            }
+            syncHorizontalScroll();
         }
         aggiornaFiltroRTC();
     });
@@ -895,10 +974,9 @@ function enableColumnResize(tableSelector) {
             $('body').css('cursor', '');
             $(tableEl).removeClass('resizing-columns');
 
-            // Salva e ripristina le larghezze senza forzare DataTables
             saveColumnWidths(tableSelector);
             if (window.table) {
-                // window.table.columns.adjust(); // Evitato per mantenere la larghezza impostata
+                window.table.columns.adjust();
                 loadColumnWidths(tableSelector);
             }
         };
@@ -921,8 +999,20 @@ function setColumnsAutosize(tableSelector, preventDraw = false) {
     if (!tableEl || !window.table) return;
     $(tableEl).addClass('autosize-mode');
     $(tableEl).find('thead th').each(function () {
-        $(this).css('width', '');
-        $(this).css('min-width', '');
+        const colId = $(this).attr('data-col-id');
+        if (colId === 'RTC') {
+            $(this).css('width', '165px');
+            $(this).css('min-width', '165px');
+        } else if (colId === 'PDV') {
+            $(this).css('width', '230px');
+            $(this).css('min-width', '230px');
+        } else if (colId === 'FORNITORE') {
+            $(this).css('width', '200px');
+            $(this).css('min-width', '200px');
+        } else {
+            $(this).css('width', '');
+            $(this).css('min-width', '');
+        }
     });
     if (window.table) {
         if (preventDraw) {
@@ -931,9 +1021,7 @@ function setColumnsAutosize(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    if (localStorage.getItem(COLUMN_WIDTHS_KEY)) {
-        loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate anche in autosize
-    }
+    // loadColumnWidths(tableSelector); // NON va chiamato in autosize
 }
 
 function setColumnsFixedWrap(tableSelector, preventDraw = false) {
@@ -952,9 +1040,7 @@ function setColumnsFixedWrap(tableSelector, preventDraw = false) {
             window.table.columns.adjust().draw(false);
         }
     }
-    if (localStorage.getItem(COLUMN_WIDTHS_KEY)) {
-        loadColumnWidths(tableSelector); // Ripristina eventuali larghezze personalizzate
-    }
+    loadColumnWidths(tableSelector); // Ripristina larghezze personalizzate SOLO in fixedwrap
 }
 
 function applyColumnViewMode(tableSelector, preventDraw = false) {

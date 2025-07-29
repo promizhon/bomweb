@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database_config import get_db, APP_MODE
-from models.zucchetti import Zucchetti_Articoli
+from models.zucchetti_articoli import Zucchetti_Articoli
 from typing import Optional, List
 from fastapi.templating import Jinja2Templates
 import json
@@ -121,7 +121,9 @@ async def get_data(request: Request, db: Session = Depends(get_db)):
             'Qta Genova': round(float(item.GiacenzaGenova or 0), 2),
             'Qta Bologna': round(float(item.GiacenzaBologna or 0), 2),
             'Qta Roma': round(float(item.GiacenzaRoma or 0), 2),
-            'Importo': round(float(item.Importo or 0), 2)
+            'Importo': round(
+                float(item.Importo or 0) * (1 - float(item.Sconto or 0) / 100)
+                if item.Sconto not in (None, 0) else float(item.Importo or 0), 2)
         } for item in items]
 
         return {
@@ -164,7 +166,9 @@ async def export_data(
             'Qta Genova': round(float(item.GiacenzaGenova or 0), 2),
             'Qta Bologna': round(float(item.GiacenzaBologna or 0), 2),
             'Qta Roma': round(float(item.GiacenzaRoma or 0), 2),
-            'Importo': round(float(item.Importo or 0), 2)
+            'Importo': round(
+                float(item.Importo or 0) * (1 - float(item.Sconto or 0) / 100)
+                if item.Sconto not in (None, 0) else float(item.Importo or 0), 2)
         } for item in items]
 
         df = pd.DataFrame(data)

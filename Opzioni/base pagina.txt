@@ -1,0 +1,23 @@
+Applica sempre le istruzioni contenute in Opzioni/.cursor-config.json a tutte le tue risposte e proposte di codice
+
+
+AGGIUNGIAMO UN nuovo menu laterale che si chiamera Protocolli
+i tab all'interno per ora ne mettiamo uno che si chiamera Crea Protocollo
+i campi devono essere gli stessi che vedi nell'immagine poi andremo a gestirli
+mantieni il tema coerente con le altre pagine
+
+struttura:
+protocolli.py
+crea_protocolli.py
+
+
+protocolli.css
+crea_protocolli.css
+
+
+protocolli.js
+crea_protocolli.js
+
+
+tutti i campi di testo e label devono essere coerenti in forma e colore con le altre pagine, le personalizzazioni le faremo nel css personale ma le configurazioni standard le prendiamo da styles e tabs gia esistenti
+

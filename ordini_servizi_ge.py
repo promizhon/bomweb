@@ -85,13 +85,19 @@ class QueryBuilder:
     def build_count_query(self, where_sql: str) -> text:
         return text(f"SELECT COUNT(*) FROM `{self.table_name}`{where_sql}")
 
-    def build_data_query(self, where_sql: str, order_column: str, order_dir: str,
-                        limit: int, offset: int) -> text:
+    def build_data_query(self, where_sql: str, orderings, limit: int, offset: int) -> text:
         base = self._build_where_clause(where_sql)
-        if limit == -1: # Gestione per "tutti i record"
-            return text(f"{base} ORDER BY `{order_column}` {order_dir}")
+        if orderings:
+            order_sql = ', '.join([f'`{col}` {dir.upper()}' for col, dir in orderings])
+            if limit == -1:
+                return text(f"{base} ORDER BY {order_sql}")
+            else:
+                return text(f"{base} ORDER BY {order_sql} LIMIT :limit OFFSET :offset")
         else:
-            return text(f"{base} ORDER BY `{order_column}` {order_dir} LIMIT :limit OFFSET :offset")
+            if limit == -1:
+                return text(f"{base}")
+            else:
+                return text(f"{base} LIMIT :limit OFFSET :offset")
 
     def build_export_query(self, where_sql: str) -> text:
         return text(self._build_where_clause(where_sql))
@@ -130,19 +136,21 @@ class DataManager:
             start = int(params.get('start', 0))
             length = int(params.get('length', 10))
             search_value = params.get('search', {}).get('value')
-            order_column_index = int(params.get('order', [{}])[0].get('column', 0))
-            order_dir = params.get('order', [{}])[0].get('dir', 'asc')
+            column_names = self.filter_manager.column_names
+            orderings = []
+            for order in params.get('order', []):
+                col_idx = int(order.get('column', 0))
+                col_name = column_names[col_idx] if col_idx < len(column_names) else column_names[0]
+                dir = order.get('dir', 'asc')
+                orderings.append((col_name, dir))
             month_filter = params.get('month_filter', '').strip()
             rtc_filter = params.get('rtc_filter', '').strip() # Specifico per questo contesto?
 
-            column_names = self.filter_manager.column_names
             if not column_names: # Caso tabella vuota o non esistente
                  return {
                     "draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": [],
                     "error": "Impossibile recuperare i nomi delle colonne."
                 }
-            order_column_name = column_names[order_column_index] if order_column_index < len(column_names) else column_names[0]
-
 
             column_searches = {
                 column_names[i]: params['columns'][i]['search']
@@ -168,7 +176,7 @@ class DataManager:
 
 
             data_query = self.query_builder.build_data_query(
-                where_sql, order_column_name, order_dir, length, start
+                where_sql, orderings, length, start
             )
 
             final_params = {**query_params}
@@ -250,16 +258,43 @@ async def get_gestione_gs_columns(request: Request, db: Session = Depends(get_db
             return JSONResponse(status_code=400, content={"error": "Ruolo non trovato per l'utente"})
         permessi = db.query(UtenteRuoliPermessi).filter_by(ruolo_id=ruolo_id).first()
         colonne_nascoste = []
+        colonne_editabili = []
         if permessi and permessi.colonne_ordini_servizio_ge:
             colonne_nascoste = [c.strip() for c in permessi.colonne_ordini_servizio_ge.split(',') if c.strip()]
+        if permessi and hasattr(permessi, 'colonne_ordini_servizio_ge_edit') and permessi.colonne_ordini_servizio_ge_edit:
+            colonne_editabili = [c.strip() for c in permessi.colonne_ordini_servizio_ge_edit.split(',') if c.strip()]
         filter_manager = FilterManager(db, TABLE_NAME)
         columns = filter_manager.column_names
         if not columns:
             return JSONResponse([])
-        columns_out = [
-            {"field": col, "title": col.replace('_', ' ').title(), "visible": col not in colonne_nascoste}
-            for col in columns
-        ]
+        # Mappatura colonne → campo configurazione (tutto MAIUSCOLO per robustezza)
+        validation_map = {
+            'CATEGORIA_CLIENTE': 'competenza',
+            'TIPO_INTERVENTO': 'tipologia',
+            'CATEGORIA_INTERVENTO': 'categoria',
+            'TIPOLOGIA_OPEX': 'tipo',
+            'PRESENZA_GAS': 'CONFERMA',
+            'STATO_APPROVAZIONE': 'approvazionecarrefour',
+            'STATO_APPROVAZIONE_BACKOFFICE': 'stati',
+        }
+        columns_out = []
+        for col in columns:
+            validation = None
+            config_field = validation_map.get(col.upper())
+            if config_field:
+                # Estrai tutti i valori distinti non nulli/non vuoti per quella colonna
+                value_query = text(f"SELECT DISTINCT {config_field} FROM carrefour_configurazione WHERE {config_field} IS NOT NULL AND TRIM({config_field}) != ''")
+                value_rows = db.execute(value_query).fetchall()
+                values = sorted({str(row[0]).strip() for row in value_rows if row[0] is not None and str(row[0]).strip() != ''})
+                if values:
+                    validation = {"type": "list", "values": values}
+            columns_out.append({
+                "field": col,
+                "title": col.replace('_', ' ').title(),
+                "visible": col not in colonne_nascoste,
+                "editable": col in colonne_editabili,
+                "validation": validation
+            })
         return JSONResponse(columns_out)
     except Exception as e:
         import sys
@@ -331,6 +366,25 @@ async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail=f"Errore nel recupero del valore originale per il logging: {str(e)}")
     # --- Fine recupero campo_old ---
 
+    # --- Inizio controllo convalida dati a elenco ---
+    validation_map = {
+        'CATEGORIA_CLIENTE': 'competenza',
+        'TIPO_INTERVENTO': 'tipologia',
+        'CATEGORIA_INTERVENTO': 'categoria',
+        'TIPOLOGIA_OPEX': 'tipo',
+        'PRESENZA_GAS': 'CONFERMA',
+        'stato_approvazione': 'approvazionecarrefour',
+        'stato_approvazione_backoffice': 'stati',
+    }
+    config_field = validation_map.get(field.upper())
+    if config_field:
+        value_query = text(f"SELECT DISTINCT {config_field} FROM carrefour_configurazione WHERE {config_field} IS NOT NULL AND TRIM({config_field}) != ''")
+        value_rows = db.execute(value_query).fetchall()
+        values = {str(row[0]).strip() for row in value_rows if row[0] is not None and str(row[0]).strip() != ''}
+        if str(value).strip() != '' and str(value).strip() not in values:
+            raise HTTPException(status_code=400, detail=f"Valore '{value}' non ammesso per la colonna '{field}'. Valori ammessi: {sorted(values)}")
+    # --- Fine controllo convalida dati a elenco ---
+
     try:
         update_query = text(f"""
             UPDATE `{TABLE_NAME}`
@@ -353,6 +407,11 @@ async def update_gestione_gs_data(request: Request, db: Session = Depends(get_db
             utente_session = request.cookies.get("session") # Da verificare se è l'identificativo corretto
             if not utente_session:
                 utente_session = "UtenteNonIdentificato" # Fallback o gestione errore
+            else:
+                try:
+                    utente_session = json.loads(utente_session).get("login", "UtenteNonIdentificato")
+                except Exception:
+                    utente_session = str(utente_session)
 
             log_entry = CarrefourLog(
                 utente=utente_session,

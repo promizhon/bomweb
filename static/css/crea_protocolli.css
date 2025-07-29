@@ -1,0 +1,113 @@
+/* Stili specifici per il form Crea Protocollo (da personalizzare) */
+form#crea-protocollo-form input.form-control,
+form#crea-protocollo-form textarea.form-control,
+form#crea-protocollo-form select.form-select {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0.3rem !important;
+    padding-right: 0.3rem !important;
+    font-size: 0.9rem !important;
+    line-height: 1.2 !important;
+    border-width: 1px !important;
+    box-sizing: border-box !important;
+}
+
+#crea-protocollo-form label.form-label {
+    font-size: 0.80rem !important;
+    font-weight: 500;
+    color: var(--text-light);
+}
+
+/* Uniforma anche i bottoni */
+#crea-protocollo-form button[type="submit"] {
+    font-size: 0.95rem !important;
+    padding: 0.375rem 1.2rem !important;
+    border-radius: 0.5rem;
+    height: 38px !important;
+}
+
+/* OVERRIDE FORZATO per altezza campi Crea Protocollo */
+form#crea-protocollo-form input.form-control,
+form#crea-protocollo-form textarea.form-control,
+form#crea-protocollo-form select.form-select {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0.3rem !important;
+    padding-right: 0.3rem !important;
+    font-size: 0.9rem !important;
+    line-height: 1.2 !important;
+    border-width: 1px !important;
+    box-sizing: border-box !important;
+}
+
+.input-stretto-centrato {
+    width: 6ch !important;
+    min-width: 6ch !important;
+    max-width: 7ch !important;
+    text-align: center;
+}
+
+.input-data-centrata {
+    width: 13ch !important;
+    min-width: 9ch !important;
+    max-width: 12ch !important;
+    text-align: center;
+}
+
+
+form#crea-protocollo-form select.form-select {
+    width: 12ch !important;
+    min-width: 8ch !important;
+    max-width: 14ch !important;
+    text-align: center;
+    padding-right: 2.2em !important;
+    /* spazio per la freccia */
+}
+
+.input-nonmodificabile {
+    background-color: #f5f5fa !important;
+    color: #a0a0a0 !important;
+    border: 1.5px dashed var(--accent-yellow) !important;
+    cursor: not-allowed !important;
+    font-style: italic;
+    opacity: 1 !important;
+}
+
+
+form#crea-protocollo-form textarea#note_interne,
+form#crea-protocollo-form textarea#note_backoffice {
+    min-height: 140px !important;
+    height: 140px !important;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    font-size: 0.9rem !important;
+    resize: vertical !important;
+    line-height: 1.4 !important;
+}
+
+/* SOLO per la tabella protocolli: compatta e senza spazi inutili */
+body .protocollo-table-card {
+    padding: 0.2rem 0.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+body .protocollo-table-card .card-body {
+    padding: 0.2rem 0.2rem !important;
+}
+
+body .protocollo-table-card .card-body #tabellaProtocolloArticoli th,
+body .protocollo-table-card .card-body #tabellaProtocolloArticoli td {
+    font-size: 11px !important;
+    padding: 0.10rem 0.18rem !important;
+    line-height: 2.1 !important;
+}
+
+body #tabellaProtocolloArticoli {
+    margin-bottom: 0 !important;
+}

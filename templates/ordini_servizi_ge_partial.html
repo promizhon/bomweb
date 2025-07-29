@@ -70,11 +70,12 @@
     <div class="table-scroll-header">
         <div class="table-scroll-header-inner"></div>
     </div>
-    
+
     <!-- Contenitore della tabella con scroll -->
     <div class="table-wrapper-fix">
         <div id="dt-buttons" class="mb-2"></div>
-        <table id="gestione-gs-table" class="table table-striped table-bordered" style="width:100%; min-width: 100%;"></table>
+        <table id="gestione-gs-table" class="table table-striped table-bordered" style="width:100%; min-width: 100%;">
+        </table>
     </div>
 
     <!-- Advanced Filters Panel -->
@@ -94,8 +95,8 @@
 </div>
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', path='css/ordini_servizi_ge.css') }}">
+<link rel="stylesheet" href="/static/css/ordini_servizi_ge.css?v={{ STATIC_VERSION }}">
 {% endblock %}
 {% block script_extra %}
-<script src="{{ url_for('static', path='js/ordini_servizi_ge.js') }}"></script>
+<script src="/static/js/ordini_servizi_ge.js?v={{ STATIC_VERSION }}"></script>
 {% endblock %}

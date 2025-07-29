@@ -1,6 +1,6 @@
 import pytest
 from ordini_materiale_articoli import _perform_search_query
-from models.zucchetti import Zucchetti_Articoli
+from models.zucchetti_articoli import Zucchetti_Articoli
 from unittest.mock import MagicMock
 
 class DummyQuery:
